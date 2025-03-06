@@ -1,10 +1,9 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
-import path from "path";
-import { writeFile, rm, mkdir } from 'fs/promises';
-import { tmpdir } from 'os';
-import { fromPath } from 'pdf2pic';
-import sharp from 'sharp';
+import fs from 'fs/promises';
+import path from 'path';
+import { tmpdir } from "os";
+import { pdf } from "pdf-to-img";
 
 const groq = new Groq({
     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY || '',
@@ -19,42 +18,21 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
         }
 
-        // Create temporary directory for processing
-        const tempDir = path.join(tmpdir(), `pdf-${Date.now()}`);
-        const tempFile = path.join(tempDir, 'input.pdf');
-        const outputDir = path.join(tempDir, 'output');
-
-        await rm(tempDir, { recursive: true, force: true });
-        await rm(outputDir, { recursive: true, force: true });
-        // Create directories
-        await mkdir(tempDir, { recursive: true });
-        await mkdir(outputDir, { recursive: true });
-
-        // Write the uploaded file to temp directory
         const arrayBuffer = await (file as File).arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        await writeFile(tempFile, buffer);
 
-        // Convert PDF to image
-        const options = {
-            density: 300,
-            saveFilename: "page-1",
-            savePath: outputDir,
-            format: "png",
-            width: 1024
-        };
+        const document = await pdf(buffer, {scale: 3});
+        const page1Buffer = await document.getPage(1);
 
-        const convert = fromPath(tempFile, options);
-        const result = await convert(1); // Convert first page
+        // Create a temporary file path
+        const tempDir = path.join(tmpdir(), `pdf-${Date.now()}`);
+        const tempFile = path.join(tempDir, 'input.png');
 
-        // Use sharp to convert to JPEG and resize
-        const imageBuffer = await sharp(result.path)
-            .jpeg({ quality: 90 })
-            .resize(1024, null, { fit: 'inside' })
-            .toBuffer();
+        // Create temp directory and write the file
+        await fs.mkdir(tempDir, { recursive: true });
+        await fs.writeFile(tempFile, page1Buffer);
 
-        // Convert to base64
-        const base64 = imageBuffer.toString('base64');
+        //await fs.rm(tempDir, { recursive: true, force: true });
         
         const response = await groq.chat.completions.create({
             model: "llama-3.2-11b-vision-preview",
@@ -62,21 +40,17 @@ export async function POST(req: Request) {
                 { 
                     role: "user", 
                     content: [
-                        {"type": "text", "text": "What is the text in this image?"},
+                        {"type": "text", "text": "Please extract the text from the image and return the pure text to me."},
                         {
                             type: "image_url",
                             image_url: {
-                                url: `data:image/jpeg;base64,${base64}`
+                                url: `data:image/png;base64,${page1Buffer.toString('base64')}`
                             },
                         },
                     ],
                 }
             ]
         });
-
-        // Clean up temporary files
-        await rm(tempDir, { recursive: true, force: true });
-        await rm(outputDir, { recursive: true, force: true });
 
         return NextResponse.json({ response: response.choices[0].message.content });
     } catch (error) {

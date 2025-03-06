@@ -6,6 +6,7 @@ type UploadStatus = "idle" | "uploading" | "success" | "error";
 export default function FileUpload() {
     const [file, setFile] = useState<File | null>(null);
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+    const [pdfText, setPdfText] = useState<string>("");
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -39,6 +40,7 @@ export default function FileUpload() {
             });
             const data = await response.json();
             console.log(data);
+            setPdfText(data.response);
         } catch (error) {
             console.error("Error uploading file:", error);
             setUploadStatus("error");
@@ -52,6 +54,7 @@ export default function FileUpload() {
                 {file && <div>{file.name}</div>}
                 {file && uploadStatus !== "uploading" && <button type="submit">Upload</button>}
             </form>
+            {pdfText && <div>{pdfText}</div>}
         </div>
     )
 }
