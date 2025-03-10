@@ -34,6 +34,26 @@ interface RFQRequirements {
     higherLevelQualityIndicator: string,
 }
 
+interface lineItem {
+    CLIN: string,
+    PR: string,
+    PRLI: string,
+    UI: string,
+    QUANTITY: string,
+    UNIT_PRICE: string,
+    TOTAL_PRICE: string,
+}
+
+const emptyLineItem = (): lineItem => ({
+    CLIN: '',
+    PR: '',
+    PRLI: '',
+    UI: '',
+    QUANTITY: '',
+    UNIT_PRICE: '',
+    TOTAL_PRICE: '',
+})
+
 const emptyRFQRequirements = (): RFQRequirements => ({
     solicitationNumber: '',
     solicitationTypeIndicator: '',
@@ -83,9 +103,6 @@ export async function POST(req: Request) {
         const page1 = await pdf.getPage(1);
         const page1TextContent = await page1.getTextContent();
         const page1Text = page1TextContent.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-        const page2 = await pdf.getPage(2);
-        const page2TextContent = await page2.getTextContent();
-        const page2Text = page2TextContent.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
 
         //1. Solicitation Number
         const solicitationNumberRegex = /REQUEST NO\.\s+(\S+)/;
@@ -155,8 +172,8 @@ export async function POST(req: Request) {
         //30. BOA/FSS/BPA Contract Number -- Not an RFQ Requirement, default to blank, look to website for conditions
         //31. BOA/FSS/BPA Contract Expiration Date -- Not an RFQ Requirement, default to blank, look to website for conditions
 
-        //32. FOB Point either DELIVER FOB: ORIGIN or DELIVER FOB: DESTINATION, can have several
-        //Assuming deliver FOB only shows up once per page
+        //32. FOB Point, can have several
+        //Assuming 'DELIVER FOB:' only shows up once per page
         const fobPointRegex = /DELIVER FOB:\s+(\S+)/g;
         const fobPointsArray = [];
         for(let i = 2; i<pdf.numPages; i++) {
@@ -170,26 +187,126 @@ export async function POST(req: Request) {
         }
         //currently only supports one FOB Point
         csvObject.fobPoint = fobPointsArray[0];
-        console.log(csvObject);
+
+        //33. FOB City -- Not an RFQ requirement, default to blank, look to website for conditions
+        //34. FOB State/Province -- Not an RFQ requirement, default to blank, look to website for conditions
+        //35. FOB Country -- Not an RFQ requirement, default to blank, look to website for conditions
+
+        //36. Inspection Point Code, can have several
+        const inspectionPointRegex = /INSPECTION POINT:\s+(\S+)/g;
+        const inspectionPointsArray = [];
+        for(let i = 2; i<pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const pageText = await page.getTextContent();
+            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+            const inspectionPoint = pageTextContent.match(inspectionPointRegex);
+            if(inspectionPoint != null) {
+                inspectionPointsArray.push(inspectionPoint[0].includes("ORIGIN") ? "O" : "D");
+            }
+        }
+        //currently only supports one Inspection Point
+        csvObject.inspectionCodePoint = inspectionPointsArray[0];
+
+        //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
+        //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
+        //39. Reserved -- Not an RFQ requirement, default to N
+        //40- 43 Blank
+
+        //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
+        const solicitationLineNumbers = getSolicitationLineNumber(fobPointsArray);
+        console.log("Solicitation Line Numbers: ", solicitationLineNumbers);
         
-        const prNoRegex = /REQUISITION\/PURCHASE REQUEST NO\.\s+(\S+)/;
-        //If PR No is See, then there are multiple PR Nos and we'll have to find them in the text on other pages
-        console.log("PR No: ", page1Text.match(prNoRegex)[1]);
+        //45. RESERVED -- Not an RFQ requirement, default to blank
+
+        //46. Purchase Request Number -- written to support many PR Nos, but focused on one for now
+        const purchaseRequestNumberRegex = /REQUISITION\/PURCHASE REQUEST NO\.\s+(\S+)/;
+        const purchaseRequestNo = page1Text.match(purchaseRequestNumberRegex)[1];
+        if(purchaseRequestNo == "See") {
+            //Suggests multiple PR Nos, need to find them in the text on other pages
+            const purchaseRequestNumbers = [];
+            const prNumberRegex = /PR:\s+(\S+)/;
+            for(let i = 2; i<pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const pageText = await page.getTextContent();
+                const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+                const purchaseNumber = pageTextContent.match(prNumberRegex);
+                if(purchaseNumber != null) {
+                    purchaseRequestNumbers.push(purchaseNumber[1]);
+                }
+            }
+            const uniquePurchaseRequestNumbers = [...new Set(purchaseRequestNumbers)];
+            console.log("Purchase Request Numbers: ", uniquePurchaseRequestNumbers);
+        } else {
+            csvObject.purchaseRequestNumber = purchaseRequestNo;
+        }
+
+        //47. National Stock Number / Part Number -- Will match "NSN/MATERIAL: " Can have multiple, focusing on one for now
+        const nsnRegex = /NSN\/MATERIAL:(\S+)/;
+        const nationalStockNumbers = [];
+        for(let i = 2; i<pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const pageText = await page.getTextContent();
+            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+            const nsn = pageTextContent.match(nsnRegex);
+            if(nsn != null) {
+                nationalStockNumbers.push(nsn[1]);
+            }
+        }
+        const uniqueNationalStockNumbers = [...new Set(nationalStockNumbers)];
+        if(uniqueNationalStockNumbers.length > 1) {
+            console.log("Multiple National Stock Numbers: ", uniqueNationalStockNumbers);
+        } else {
+            csvObject.nationalStockNumber = uniqueNationalStockNumbers[0];
+        }
+
+        //48. Unit of Issue -- can have several line items, using regex to find them, assuming for one
+        const unitOfIssueRegex = /(?<=PRICE \.).*?(?=NSN\/MATERIAL)/;
+        let allText = page1Text;
+        const lineItems: lineItem[] = [];
+        for(let i = 2; i<pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const pageText = await page.getTextContent();
+            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+            const unitOfIssue = pageTextContent.match(unitOfIssueRegex);
+            if(unitOfIssue != null) {
+                const lineItemArray = unitOfIssue[0].trim().split(" ");
+                if(lineItemArray.length == 7) {
+                    lineItems.push({
+                        CLIN: lineItemArray[0],
+                        PR: lineItemArray[1],
+                        PRLI: lineItemArray[2],
+                        UI: lineItemArray[3],
+                        QUANTITY: lineItemArray[4],
+                        UNIT_PRICE: lineItemArray[5],
+                        TOTAL_PRICE: lineItemArray[6],
+                    })
+                } else {
+                    lineItems.push({
+                        CLIN: lineItemArray[0],
+                        PR: lineItemArray[1],
+                        PRLI: lineItemArray[2],
+                        UI: lineItemArray[3],
+                        QUANTITY: lineItemArray[4],
+                        UNIT_PRICE: '',
+                        TOTAL_PRICE: '',
+                    });
+                }
+            }
+            allText += pageTextContent;
+        }
+        if(lineItems.length > 1) {
+            console.log("Multiple Line Items: ", lineItems);
+        } else {
+            csvObject.unitOfIssue = lineItems[0].UI;
+        //49. Quantity -- Leveraging line items to get the quantity
+            csvObject.quantity = lineItems[0].QUANTITY;
+        }
+
+        console.log(csvObject);
+
         //21 RFQ Requirements to extract
         //Goal for Today, Extract all the RFQ requirements from a document with only 1 NSN and 1 requisistion number
         /*
-        32. FOB Point -- DELIVER FOB: ORIGIN for O or DESTINATION for D, if O 33, 34, 35 are required, just don't know which city, Acceptance Point: also seems to give answer
-        33, 34, 35 -- If 32 is O, these are required, don't know which city
-        36. Inspection Point Code -- D for Destination O for Origin, if different from RFQ requirement, change 24 to BW or AB, found in Section B
-        37. Place of Government Inspection - Packaging CAGE code -- if 36 is D, this is blank, if O this is required, what is the packaging CAGE code, where to find it?
-        38. Place of Government Inspection - Supplies CAGE code -- if 36 is D, this is blank, if O this is required, what is the supplies CAGE code, where to find it?
-        39. "N" in the sample document, but blank on the website, unclear
-        40 - 43 -- Blank
-        44. Solicitation Line Number -- CLIN, if Request No. is "See", there may be multiple PRLIs, need to find them in the text, otherwise, it's 0001
-        45. Blank
-        46. Purchase Request Number -- if Request No. is "See", there may be multiple, otherwise just find the one, should follow "PR: "
-        47. National Stock Number / Part Number -- Will match "NSN/MATERIAL: "
-        48. Unit of Issue -- UI in the table in section B
         49. Quantity -- Quantity value in the table in Section B
         50. Unit Price -- I think we enter it
         51. Delivery Days -- follows "Delivery (in days):" in RFQ
@@ -257,11 +374,19 @@ export async function POST(req: Request) {
         There can be multiple NSN's per document, meaning we need to find values for all distinct NSN's
         May be worth doing a first round of elimination, if we won't have the NSNs, no point in processing the rest of the document
       */
-        return NextResponse.json({ response: page1Text + page2Text });
+        return NextResponse.json({ response: allText });
     } catch (error) {
         console.error("Error processing request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
+}
+
+function getSolicitationLineNumber(fobPointsArray: []): [] {
+    const solicitationLineNumbers = [];
+    for(let i = 1; i <= fobPointsArray.length; i++) {
+        solicitationLineNumbers.push(i.toString().padStart(4, '0'));
+    }
+    return solicitationLineNumbers;
 }
 
 function convertDateFormat(dateStr: string): string {
