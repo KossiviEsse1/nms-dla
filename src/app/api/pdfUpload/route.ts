@@ -281,18 +281,12 @@ export async function POST(req: Request) {
         //120. Child Labor Certification Code -- enter yourself, conditions on website, must be N, can't be blank
         //121. Quote Remarks -- enter yourself, conditions on website, can be left blank
 
-
-        
-        
-
-
-
-        console.log(csvObject);
         /*
         There can be multiple NSN's per document, meaning we need to find values for all distinct NSN's
         May be worth doing a first round of elimination, if we won't have the NSNs, no point in processing the rest of the document
         */
-        return NextResponse.json({ response: allTextPages });
+        const csvString = rfqRequirementsToCsv(csvObject);
+        return NextResponse.json({ response: csvString });
     } catch (error) {
         console.error("Error processing request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -588,6 +582,15 @@ function getHigherLevelQualityIndicator(text: string): string {
     } else {
         return "N";
     }
+}
+
+function rfqRequirementsToCsv(data: RFQRequirements): string {
+    let value = "";
+    for(const key in data) {
+        value += `"${data[key]}"` + ",";
+    }
+    value = value.slice(0, -1);
+    return value;
 }
 
 function convertDateFormat(dateStr: string): string {
