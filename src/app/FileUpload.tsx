@@ -38,11 +38,25 @@ export default function FileUpload() {
                 body: formData
             });
             const data = await response.json();
+            downloadCsv(data.response);
             setPdfText(data.response);
         } catch (error) {
             console.error("Error uploading file:", error);
             setUploadStatus("error");
         }
+    }
+
+    const downloadCsv = (csvContent: string, filename = "rfq_requirements.csv") => {
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+    
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     return (
