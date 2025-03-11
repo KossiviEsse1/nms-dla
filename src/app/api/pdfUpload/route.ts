@@ -104,53 +104,27 @@ export async function POST(req: Request) {
         const page1TextContent = await page1.getTextContent();
         const page1Text = page1TextContent.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
 
+        let allTextPages = page1Text;
+        for(let i = 2; i<pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const pageText = await page.getTextContent();
+            allTextPages += pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+        }
+
         //1. Solicitation Number
-        const solicitationNumberRegex = /REQUEST NO\.\s+(\S+)/;
-        csvObject.solicitationNumber = page1Text.match(solicitationNumberRegex)[1];
+        csvObject.solicitationNumber = getSolicitationNumber(page1Text);
 
         //2. Solicitation Type Indicator
-        for(let i = 2; i<pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const pageText = await page.getTextContent();
-            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-            if(pageTextContent.includes("UNILATERAL IDC")) {
-                csvObject.solicitationTypeIndicator = "I";
-                break;
-            }
-            //Need to check for conditions that get F or P
-        }
+        csvObject.solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
 
         //3. Small Business Set-Aside Indicator
-        for(let i = 2; i<pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const pageText = await page.getTextContent();
-            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-            if(pageTextContent.includes("FAR 52.219-6 Notice of Total Small Business Set-Aside")) {
-                csvObject.smallBusinessSetAsideIndicator = "Y";
-                break;
-            } else if(pageTextContent.includes("FAR 52.219-3 Notice of HUBZone Set-Aside or Sole Source Award")){
-                csvObject.smallBusinessSetAsideIndicator = "H";
-                break;
-            } else if(pageTextContent.includes("FAR 52.219-27 Notice of Service-Disabled Veteran-Owned Small Business Set-Aside")){
-                csvObject.smallBusinessSetAsideIndicator = "R";
-                break;
-            } else if(pageTextContent.includes("FAR 52.219-30 Notice of Set-aside for, or Sole Source Award to Women-Owned Small Business Concerns")){
-                csvObject.smallBusinessSetAsideIndicator = "L";
-                break;
-            } 
-            //Need text to identify A, 8a Set-Aside and E, EDWOSB Set-Aside
-            else {
-                csvObject.smallBusinessSetAsideIndicator = "N";
-            }
-        }
+        csvObject.smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
 
         //4. Additional Clause Fill-In Indicators, unsure what identifies a Y
         csvObject.additionalClauseFillInsIndicator = "N";
 
         //5. RFQ Return By Date
-        const returnByDateRegex = /\d{4}\s+[A-Z]{3}\s+\d{1,2}/g;
-        const returnByDate = page1Text.match(returnByDateRegex)[1];
-        csvObject.rfqReturnByDate = convertDateFormat(returnByDate);
+        csvObject.rfqReturnByDate = getReturnByDate(page1Text);
 
         //6. Quoter Cage Code, not an RFQ requirement, default to blank, look to website for conditions
         //7. Quote for Cage Code, not an RFQ requirement, default to blank, look to website for conditions
@@ -173,19 +147,7 @@ export async function POST(req: Request) {
         //31. BOA/FSS/BPA Contract Expiration Date -- Not an RFQ Requirement, default to blank, look to website for conditions
 
         //32. FOB Point, can have several
-        //Assuming 'DELIVER FOB:' only shows up once per page
-        const fobPointRegex = /DELIVER FOB:\s+(\S+)/g;
-        const fobPointsArray = [];
-        for(let i = 2; i<pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const pageText = await page.getTextContent();
-            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-            const fobPoint = pageTextContent.match(fobPointRegex);
-            if(fobPoint != null) {
-                fobPointsArray.push(fobPoint[0].includes("ORIGIN") ? "O" : "D");
-            }
-        }
-        //currently only supports one FOB Point
+        const fobPointsArray = getFOBPoint(allTextPages);
         csvObject.fobPoint = fobPointsArray[0];
 
         //33. FOB City -- Not an RFQ requirement, default to blank, look to website for conditions
@@ -193,19 +155,8 @@ export async function POST(req: Request) {
         //35. FOB Country -- Not an RFQ requirement, default to blank, look to website for conditions
 
         //36. Inspection Point Code, can have several
-        const inspectionPointRegex = /INSPECTION POINT:\s+(\S+)/g;
-        const inspectionPointsArray = [];
-        for(let i = 2; i<pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const pageText = await page.getTextContent();
-            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-            const inspectionPoint = pageTextContent.match(inspectionPointRegex);
-            if(inspectionPoint != null) {
-                inspectionPointsArray.push(inspectionPoint[0].includes("ORIGIN") ? "O" : "D");
-            }
-        }
         //currently only supports one Inspection Point
-        csvObject.inspectionCodePoint = inspectionPointsArray[0];
+        csvObject.inspectionCodePoint = getInspectionPoint(allTextPages);
 
         //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
         //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
@@ -214,33 +165,14 @@ export async function POST(req: Request) {
 
         //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
         const solicitationLineNumbers = getSolicitationLineNumber(fobPointsArray);
-        console.log("Solicitation Line Numbers: ", solicitationLineNumbers);
         
         //45. RESERVED -- Not an RFQ requirement, default to blank
 
         //46. Purchase Request Number -- written to support many PR Nos, but focused on one for now
-        const purchaseRequestNumberRegex = /REQUISITION\/PURCHASE REQUEST NO\.\s+(\S+)/;
-        const purchaseRequestNo = page1Text.match(purchaseRequestNumberRegex)[1];
-        if(purchaseRequestNo == "See") {
-            //Suggests multiple PR Nos, need to find them in the text on other pages
-            const purchaseRequestNumbers = [];
-            const prNumberRegex = /PR:\s+(\S+)/;
-            for(let i = 2; i<pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const pageText = await page.getTextContent();
-                const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-                const purchaseNumber = pageTextContent.match(prNumberRegex);
-                if(purchaseNumber != null) {
-                    purchaseRequestNumbers.push(purchaseNumber[1]);
-                }
-            }
-            const uniquePurchaseRequestNumbers = [...new Set(purchaseRequestNumbers)];
-            console.log("Purchase Request Numbers: ", uniquePurchaseRequestNumbers);
-        } else {
-            csvObject.purchaseRequestNumber = purchaseRequestNo;
-        }
+        csvObject.purchaseRequestNumber = getPurchaseRequestNumber(page1Text, allTextPages)[0];
 
         //47. National Stock Number / Part Number -- Will match "NSN/MATERIAL: " Can have multiple, focusing on one for now
+        //console.log("National Stock Numbers1: ", getNationalStockNumber(allTextPages)[0]);
         const nsnRegex = /NSN\/MATERIAL:(\S+)/;
         const nationalStockNumbers = [];
         for(let i = 2; i<pdf.numPages; i++) {
@@ -255,7 +187,7 @@ export async function POST(req: Request) {
         }
         const uniqueNationalStockNumbers = [...new Set(nationalStockNumbers)];
         if(uniqueNationalStockNumbers.length > 1) {
-            console.log("Multiple National Stock Numbers: ", uniqueNationalStockNumbers);
+            console.log("National Stock Numbers2: ", uniqueNationalStockNumbers);
         } else {
             csvObject.nationalStockNumber = uniqueNationalStockNumbers[0];
         }
@@ -648,7 +580,95 @@ export async function POST(req: Request) {
     }
 }
 
-function getSolicitationLineNumber(fobPointsArray: []): [] {
+function getSolicitationNumber(text: string): string {
+    const solicitationNumberRegex: RegExp = /REQUEST NO\.\s+(\S+)/;
+    return text.match(solicitationNumberRegex)[1];
+}
+
+function getSolicitationTypeIndicator(text: string): string {
+    if(text.includes("UNILATERAL IDC")) {
+        return "I"
+    }
+    return "P";
+}
+
+function getSmallBusinessSetAsideIndicator(text: string): string {
+    if(text.includes("FAR 52.219-6 Notice of Total Small Business Set-Aside")) {
+        return "Y";
+    } else if(text.includes("FAR 52.219-3 Notice of HUBZone Set-Aside or Sole Source Award")){
+        return "H"
+    } else if(text.includes("FAR 52.219-27 Notice of Service-Disabled Veteran-Owned Small Business Set-Aside")){
+        return "R"
+    } else if(text.includes("FAR 52.219-30 Notice of Set-aside for, or Sole Source Award to Women-Owned Small Business Concerns")){
+        return "L"
+    } 
+    //Need text to identify A, 8a Set-Aside and E, EDWOSB Set-Aside
+    else {
+        return "N";
+    }
+}
+
+function getReturnByDate(text: string): string {
+    const returnByDateRegex = /\d{4}\s+[A-Z]{3}\s+\d{1,2}/g;
+    const returnByDate = text.match(returnByDateRegex)[1];
+    return convertDateFormat(returnByDate);
+}
+
+function getFOBPoint(text: string): string[] {
+    //currently only supports one FOB Point
+    //Assuming 'DELIVER FOB:' only shows up once per page
+    const fobPointRegex = /DELIVER FOB:\s+(\S+)/g;
+    const fobPointsArray = text.match(fobPointRegex).map((point) => point.includes("ORIGIN") ? "O" : "D");
+    console.log("FOB Points2: ", fobPointsArray);
+    return fobPointsArray;
+}
+
+function getInspectionPoint(text: string): string {
+    //currently only supports one FOB Point
+    //Assuming 'DELIVER FOB:' only shows up once per page
+    const inspectionPointRegex = /INSPECTION POINT:\s+(\S+)/g;
+    const inspectionPointsArray = text.match(inspectionPointRegex).map((point) => point.includes("ORIGIN") ? "O" : "D");
+    return inspectionPointsArray[0];
+}
+
+function getPurchaseRequestNumber(text1: string, text2: string): string[] {
+    const purchaseRequestNumberRegex = /REQUISITION\/PURCHASE REQUEST NO\.\s+(\S+)/;
+    const purchaseRequestNo = text1.match(purchaseRequestNumberRegex)[1];
+    if(purchaseRequestNo == "See") {
+        //There are multiple PR Numbers
+        const prNumberRegex = /PR:\s+(\S+)/g;
+        const purchaseRequestNumbers = text2.match(prNumberRegex).map((number) => number.substring(4));
+        const uniquePurchaseRequestNumbers = [...new Set(purchaseRequestNumbers)];
+        return uniquePurchaseRequestNumbers;
+    } else {
+        return [purchaseRequestNo];
+    }
+}
+
+function getNationalStockNumber(text: string): string[] {
+
+}
+
+const nsnRegex = /NSN\/MATERIAL:(\S+)/;
+        const nationalStockNumbers = [];
+        for(let i = 2; i<pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const pageText = await page.getTextContent();
+            const pageTextContent = pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+            const nsn = pageTextContent.match(nsnRegex);
+            if(nsn != null) {
+                console.log("National Stock Number: ", nsn);
+                nationalStockNumbers.push(nsn[1]);
+            }
+        }
+        const uniqueNationalStockNumbers = [...new Set(nationalStockNumbers)];
+        if(uniqueNationalStockNumbers.length > 1) {
+            console.log("Multiple National Stock Numbers: ", uniqueNationalStockNumbers);
+        } else {
+            csvObject.nationalStockNumber = uniqueNationalStockNumbers[0];
+        }
+
+function getSolicitationLineNumber(fobPointsArray: string[]): string[] {
     const solicitationLineNumbers = [];
     for(let i = 1; i <= fobPointsArray.length; i++) {
         solicitationLineNumbers.push(i.toString().padStart(4, '0'));
