@@ -73,6 +73,8 @@ export default function FileUpload() {
             }
             
             const data = await response.json();
+            downloadCsv(data.response);
+            downloadCsv(data.response);
             setPdfText(data.response);
             setUploadStatus("success");
         } catch (error) {
@@ -85,6 +87,19 @@ export default function FileUpload() {
         setFile(null);
         setPdfText("");
         setUploadStatus("idle");
+    }
+
+    const downloadCsv = (csvContent: string, filename = "rfq_requirements.csv") => {
+        const blob = new Blob([csvContent], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+    
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     return (
@@ -178,14 +193,10 @@ export default function FileUpload() {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-green-700">
-                                    Document processed successfully!
+                                    Document processed successfully! CSV Downloaded.
                                 </p>
                             </div>
                         </div>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Extracted Information</h3>
-                    <div className="bg-white border border-gray-200 rounded-md p-4 overflow-auto max-h-96">
-                        <pre className="text-sm text-gray-700 whitespace-pre-wrap">{pdfText}</pre>
                     </div>
                 </div>
             )}
