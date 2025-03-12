@@ -8,6 +8,15 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* DLA Colors */
+  --dla-navy: #112e51;
+  --dla-blue: #0071bc;
+  --dla-light-blue: #02bfe7;
+  --dla-red: #e31c3d;
+  --dla-gold: #fdb81e;
+  --dla-gray: #5b616b;
+  --dla-light-gray: #f1f1f1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -20,5 +29,16 @@
 body {
   color: black;
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+*:focus {
+  outline: 2px solid var(--dla-blue);
+  outline-offset: 2px;
 }
