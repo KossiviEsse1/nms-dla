@@ -74,6 +74,7 @@ export default function FileUpload() {
             
             const data = await response.json();
             downloadCsv(data.response);
+            downloadCsv(data.response);
             setPdfText(data.response);
             setUploadStatus("success");
         } catch (error) {
