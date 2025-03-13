@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import sharp from 'sharp';
+import { getSchema } from "../nsnDBHelper";
 // @ts-ignore
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 
@@ -32,6 +33,7 @@ interface RFQRequirements {
     priceBreaksSolicitedIndicator: string,
     itemDescriptionIndicator: string,
     higherLevelQualityIndicator: string,
+    index: number,
 }
 
 interface lineItem {
@@ -77,7 +79,8 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     freeTradeAgreementsIndicator: '',
     priceBreaksSolicitedIndicator: '',
     itemDescriptionIndicator: '',
-    higherLevelQualityIndicator: ''
+    higherLevelQualityIndicator: '',
+    index: 0,
 })
 
 export async function POST(req: Request) {
@@ -111,20 +114,91 @@ export async function POST(req: Request) {
             allTextPages += pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
         }
 
+        const nsnDBArray = await getSchema();
+        const nationalStockNumber = getNationalStockNumber(allTextPages)[0];
+
+        //Find NSN match in nsnDBArray, NSN is the 9th column
+        const prNumbers = getPurchaseRequestNumber(page1Text, allTextPages);
+        const nsnMatches = nsnDBArray.filter((nsn) => nsn[8] == nationalStockNumber && prNumbers.includes(nsn[6]));
+        if(nsnMatches.length == 0) {
+            //Return some response identifying that no match was found
+            return NextResponse.json({ type: "No NSN Match", response: "There were no database matches found for the NSN" });
+        }
+
+        if(nsnDBArray.length == 0) {
+            return NextResponse.json({ error: "No NSN DB found" }, { status: 400 });
+        }
+
+        const csvObjects: RFQRequirements[] = [];
+        for(let i = 0; i < prNumbers.length; i++) {
+            if(nsnMatches.some((nsn) => nsn[6] == prNumbers[i])) {
+                const csvObject = emptyRFQRequirements();
+                csvObject.purchaseRequestNumber = prNumbers[i];
+                csvObject.nationalStockNumber = nationalStockNumber;
+                csvObject.index = i;
+                csvObjects.push(csvObject);
+            }
+        }
+
+        const unitOfIssueArray = getUnitOfIssue(allTextPages);
+
+        const solicitationNumber = getSolicitationNumber(page1Text);
+        const solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
+        const smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
+        const additionalClauseFillInsIndicator = "N";
+        const rfqReturnByDate = getReturnByDate(page1Text);
+        const fobPoint = getFOBPoint(allTextPages)[0];
+        const inspectionCodePoint = getInspectionPoint(allTextPages);
+        const deliveryDays = getDeliveryDays(allTextPages)[0];
+        const guaranteedMinimum = getGuaranteedMinimum(allTextPages).length != 0 ? getGuaranteedMinimum(allTextPages)[0] : "";
+        const doMinimum = getDOMinimum(allTextPages).length != 0 ? getDOMinimum(allTextPages)[0] : "";
+        const contractMaximum = getContractMaximum(allTextPages).length != 0 ? getContractMaximum(allTextPages)[0] : "";
+        const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages).length != 0 ? getAnnualFrequencyOfBuys(allTextPages)[0] : "";
+        const hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
+        const buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
+        const freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
+        const priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);
+        const itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);
+        const higherLevelQualityIndicator = getHigherLevelQualityIndicator(allTextPages);
+        
+        
+        csvObjects.forEach((csvObject) => {
+            csvObject.solicitationNumber = solicitationNumber;
+            csvObject.solicitationTypeIndicator = solicitationTypeIndicator;
+            csvObject.smallBusinessSetAsideIndicator = smallBusinessSetAsideIndicator;
+            csvObject.additionalClauseFillInsIndicator = additionalClauseFillInsIndicator;
+            csvObject.rfqReturnByDate = rfqReturnByDate;
+            csvObject.fobPoint = fobPoint;
+            csvObject.inspectionCodePoint = inspectionCodePoint;
+            csvObject.unitOfIssue = unitOfIssueArray[csvObject.index].UI;
+            csvObject.quantity = unitOfIssueArray[csvObject.index].QUANTITY;
+            csvObject.deliveryDays = deliveryDays;
+            csvObject.guaranteedMinimum = guaranteedMinimum;
+            csvObject.doMinimum = doMinimum;
+            csvObject.contractMaximum = contractMaximum;
+            csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys;
+            csvObject.hubZonePreferenceIndicator = hubZonePreferenceIndicator;
+            csvObject.buyAmericanIndicator = buyAmericanIndicator;
+            csvObject.freeTradeAgreementsIndicator = freeTradeAgreementsIndicator;
+            csvObject.priceBreaksSolicitedIndicator = priceBreaksSolicitedIndicator;
+            csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
+            csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
+        })
+
         //1. Solicitation Number
-        csvObject.solicitationNumber = getSolicitationNumber(page1Text);
+        //csvObject.solicitationNumber = getSolicitationNumber(page1Text);
 
         //2. Solicitation Type Indicator
-        csvObject.solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
+        //csvObject.solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
 
         //3. Small Business Set-Aside Indicator
-        csvObject.smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
+        //csvObject.smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
 
         //4. Additional Clause Fill-In Indicators, unsure what identifies a Y
-        csvObject.additionalClauseFillInsIndicator = "N";
+        //csvObject.additionalClauseFillInsIndicator = "N";
 
         //5. RFQ Return By Date
-        csvObject.rfqReturnByDate = getReturnByDate(page1Text);
+        //csvObject.rfqReturnByDate = getReturnByDate(page1Text);
 
         //6. Quoter Cage Code, not an RFQ requirement, default to blank, look to website for conditions
         //7. Quote for Cage Code, not an RFQ requirement, default to blank, look to website for conditions
@@ -147,8 +221,8 @@ export async function POST(req: Request) {
         //31. BOA/FSS/BPA Contract Expiration Date -- Not an RFQ Requirement, default to blank, look to website for conditions
 
         //32. FOB Point, can have several
-        const fobPointsArray = getFOBPoint(allTextPages);
-        csvObject.fobPoint = fobPointsArray[0];
+        //const fobPointsArray = getFOBPoint(allTextPages);
+        //csvObject.fobPoint = fobPointsArray[0];
 
         //33. FOB City -- Not an RFQ requirement, default to blank, look to website for conditions
         //34. FOB State/Province -- Not an RFQ requirement, default to blank, look to website for conditions
@@ -156,7 +230,7 @@ export async function POST(req: Request) {
 
         //36. Inspection Point Code, can have several
         //currently only supports one Inspection Point
-        csvObject.inspectionCodePoint = getInspectionPoint(allTextPages);
+        //csvObject.inspectionCodePoint = getInspectionPoint(allTextPages);
 
         //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
         //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
@@ -164,56 +238,56 @@ export async function POST(req: Request) {
         //40- 43 Blank
 
         //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
-        const solicitationLineNumbers = getSolicitationLineNumber(fobPointsArray);
+        //const solicitationLineNumbers = getSolicitationLineNumber(fobPointsArray);
         
         //45. RESERVED -- Not an RFQ requirement, default to blank
 
         //46. Purchase Request Number -- written to support many PR Nos, but focused on one for now
-        csvObject.purchaseRequestNumber = getPurchaseRequestNumber(page1Text, allTextPages)[0];
+        //csvObject.purchaseRequestNumber = getPurchaseRequestNumber(page1Text, allTextPages)[0];
 
         //47. National Stock Number / Part Number -- Will match "NSN/MATERIAL: " Can have multiple, focusing on one for now
-        csvObject.nationalStockNumber = getNationalStockNumber(allTextPages)[0];
+        //csvObject.nationalStockNumber = nationalStockNumber;
 
         //48. Unit of Issue -- can have several line items, using regex to find them, assuming for one
-        const unitOfIssueArray = getUnitOfIssue(allTextPages);
-        csvObject.unitOfIssue = unitOfIssueArray[0].UI;
+        //const unitOfIssueArray = getUnitOfIssue(allTextPages);
+        //csvObject.unitOfIssue = unitOfIssueArray[0].UI;
         //49. Quantity -- Leveraging line items to get the quantity
-        csvObject.quantity = unitOfIssueArray[0].QUANTITY;
+        //csvObject.quantity = unitOfIssueArray[0].QUANTITY;
 
         //50. Unit Price -- Not an RFQ requirement, default to blank, enter ourselves
 
         //51. Delivery Days -- follows "Delivery (in days):" in RFQ
-        csvObject.deliveryDays = getDeliveryDays(allTextPages)[0];
+        //csvObject.deliveryDays = getDeliveryDays(allTextPages)[0];
         
         //52. Guaranteed Minimum -- Identified with "Guaranteed Contract Minimum Quantity:" otherwise blank, there may be multiple, focusing on one for now
-        const guaranteedMinimum = getGuaranteedMinimum(allTextPages);
-        if(guaranteedMinimum.length != 0) {
-            //Assuming only one guaranteed minimum per RFQ
-            csvObject.guaranteedMinimum = guaranteedMinimum[0];
-        }
+        // const guaranteedMinimum = getGuaranteedMinimum(allTextPages);
+        // if(guaranteedMinimum.length != 0) {
+        //     //Assuming only one guaranteed minimum per RFQ
+        //     csvObject.guaranteedMinimum = guaranteedMinimum[0];
+        // }
 
         //53. DO Minimum -- If 56 is yes, leave blank, else "Minimum Delivery Order Quantity: "
-        const doMinimum = getDOMinimum(allTextPages);
-        if(doMinimum.length != 0) {
-            csvObject.doMinimum = doMinimum[0];
-        }
+        // const doMinimum = getDOMinimum(allTextPages);
+        // if(doMinimum.length != 0) {
+        //     csvObject.doMinimum = doMinimum[0];
+        // }
 
         //54. Contract Maximum -- Can be found with "Contract Maximum Value:  " leave blank if 52 and 53 blank
-        const contractMaximum = getContractMaximum(allTextPages);
-        if(contractMaximum.length != 0) {
-            csvObject.contractMaximum = contractMaximum[0];
-        }
+        // const contractMaximum = getContractMaximum(allTextPages);
+        // if(contractMaximum.length != 0) {
+        //     csvObject.contractMaximum = contractMaximum[0];
+        // }
 
         //55. Annual Frequency of Buys (AFB) -- Can be found with "Estimated Number of orders: " if no gauranteed Minimum, leave blank
-        const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages);
-        if(annualFrequencyOfBuys.length != 0) {
-            csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys[0];
-        }
+        // const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages);
+        // if(annualFrequencyOfBuys.length != 0) {
+        //     csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys[0];
+        // }
         
         //56. No DO Minimum Quantity? -- Not an RFQ requirement, default to blank
 
         //57. HUBZone Preference Indicator -- If "FAR 52.219-4 Notice of Price Evaluation Preference for HUBZone Small Business Concerns" is in the text, Y, else N
-        csvObject.hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
+        //csvObject.hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
 
         //58. Waiver of HUBZone Preference -- Not an RFQ requirement, default to blank
         //59. Immediate Shipment Price -- Not an RFQ requirement, default to blank
@@ -221,7 +295,7 @@ export async function POST(req: Request) {
         //61. RESERVED, default to blank
 
         //62. Trade Agreements Indicator -- Need to fix condition for I
-        csvObject.tradeAgreementsIndicator = getTradeAgreementsIndicator(allTextPages);
+        //csvObject.tradeAgreementsIndicator = getTradeAgreementsIndicator(allTextPages);
         
         //63. Source of Supply Cage Code -- Not an RFQ requirement, default to blank
         //64. First Article Waiver Code -- Not an RFQ requirement, default to blank
@@ -230,10 +304,10 @@ export async function POST(req: Request) {
         //67. Material Requirements -- Not an RFQ requirement, default to blank
 
         //68. Buy American Indicator
-        csvObject.buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
+        //csvObject.buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
 
         //69. Free Trade Agreements Indicator
-        csvObject.freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
+        //csvObject.freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
 
         //70. Buy American/Free Trade/Trade Agreements End Product -- Not an RFQ requirement, default to blank
         //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Not an RFQ requirement, default to blank
@@ -244,7 +318,7 @@ export async function POST(req: Request) {
         //76. Duty Free Entry Requested/Duty Paid Amount -- Not an RFQ requirement, default to blank
 
         //77. Price Breaks Solicited Indicator -- if contains "Please provide the following price breaks" then Y, else N, don't leave blank
-        csvObject.priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);        
+        //csvObject.priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);        
 
         //SPE7M225Q0426 has some edge cases for many values
         //78 - 95, are quantities taken from RFQ if 77 is Y, currently not going to bother
@@ -259,7 +333,7 @@ export async function POST(req: Request) {
         //104. Actual Manufacturing/Production Source Name and Address -- Not an RFQ requirement, A self entered text, conditions for entering on the website, default blank
 
         //105. Item Description Indicator, Certain for B, Q, N, unsure about D, P, and S
-        csvObject.itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);    
+        //csvObject.itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);    
 
         //106. Part Number Offered Code -- Not an RFQ requirement, base is blank, enter yourself, conditions on website
         //107. Part Number Offered CAGE code -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
@@ -274,7 +348,7 @@ export async function POST(req: Request) {
         //116. Qualification Requirements Test Number -- enter yourself, conditions on website, can be blank
 
         //117. Higher-Level Quality Indicator
-        csvObject.higherLevelQualityIndicator = getHigherLevelQualityIndicator(allTextPages);
+        //csvObject.higherLevelQualityIndicator = getHigherLevelQualityIndicator(allTextPages);
 
         //118. Higher-Level Quality Code -- enter yourself, conditions on website, can be blank
         //119. Higher-Level Quality Remarks -- enter yourself, conditions on website, can be blank
@@ -285,8 +359,8 @@ export async function POST(req: Request) {
         There can be multiple NSN's per document, meaning we need to find values for all distinct NSN's
         May be worth doing a first round of elimination, if we won't have the NSNs, no point in processing the rest of the document
         */
-        const csvString = rfqRequirementsToCsv(csvObject);
-        return NextResponse.json({ response: csvString });
+       const csvString = csvObjects.map((csvObject) => rfqRequirementsToCsv(csvObject)).join("\n");
+       return NextResponse.json({ type: "NSN Match", response: csvString });
     } catch (error) {
         console.error("Error processing request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

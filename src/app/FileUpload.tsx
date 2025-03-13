@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-type UploadStatus = "idle" | "uploading" | "success" | "error";
+type UploadStatus = "idle" | "uploading" | "success" | "error" | "noMatch";
 
 export default function FileUpload() {
     const [file, setFile] = useState<File | null>(null);
@@ -73,10 +73,13 @@ export default function FileUpload() {
             }
             
             const data = await response.json();
-            downloadCsv(data.response);
-            downloadCsv(data.response);
-            setPdfText(data.response);
-            setUploadStatus("success");
+            if(data.type == "NSN Match") {
+                downloadCsv(data.response);
+                setPdfText(data.response);
+                setUploadStatus("success");
+            } else {
+                setUploadStatus("noMatch");
+            }
         } catch (error) {
             console.error("Error uploading file:", error);
             setUploadStatus("error");
@@ -92,7 +95,6 @@ export default function FileUpload() {
     const downloadCsv = (csvContent: string, filename = "rfq_requirements.csv") => {
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
-    
         const a = document.createElement("a");
         a.href = url;
         a.download = filename;
@@ -200,7 +202,25 @@ export default function FileUpload() {
                     </div>
                 </div>
             )}
-            
+            {uploadStatus === "noMatch" && (
+                <div className="mt-6">
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-red-700">
+                                    No NSN match found. Please try another RFQ.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {uploadStatus === "error" && (
                 <div className="mt-6">
                     <div className="bg-red-50 border-l-4 border-red-500 p-4">
