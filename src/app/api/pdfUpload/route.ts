@@ -34,6 +34,7 @@ interface RFQRequirements {
     itemDescriptionIndicator: string,
     higherLevelQualityIndicator: string,
     index: number,
+    unitPrice: string,
 }
 
 interface lineItem {
@@ -81,6 +82,7 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     itemDescriptionIndicator: '',
     higherLevelQualityIndicator: '',
     index: 0,
+    unitPrice: '',
 })
 
 export async function POST(req: Request) {
@@ -163,7 +165,7 @@ export async function POST(req: Request) {
         
         
         csvObjects.forEach((csvObject) => {
-            csvObject.solicitationNumber = solicitationNumber;
+            csvObject.solicitationNumber = solicitationNumber.replace(/\-/g, "");
             csvObject.solicitationTypeIndicator = solicitationTypeIndicator;
             csvObject.smallBusinessSetAsideIndicator = smallBusinessSetAsideIndicator;
             csvObject.additionalClauseFillInsIndicator = additionalClauseFillInsIndicator;
@@ -172,6 +174,7 @@ export async function POST(req: Request) {
             csvObject.inspectionCodePoint = inspectionCodePoint;
             csvObject.unitOfIssue = unitOfIssueArray[csvObject.index].UI;
             csvObject.quantity = unitOfIssueArray[csvObject.index].QUANTITY;
+            csvObject.unitPrice = unitOfIssueArray[csvObject.index].UNIT_PRICE;
             csvObject.deliveryDays = deliveryDays;
             csvObject.guaranteedMinimum = guaranteedMinimum;
             csvObject.doMinimum = doMinimum;
@@ -183,7 +186,14 @@ export async function POST(req: Request) {
             csvObject.priceBreaksSolicitedIndicator = priceBreaksSolicitedIndicator;
             csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
             csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
-        })
+        });
+
+        csvObjects.forEach((csvObject) => {
+            const nsnMatch = nsnMatches.find((nsn) => nsn[6] == csvObject.purchaseRequestNumber && nsn[8] == csvObject.nationalStockNumber);
+            csvObject.unitPrice = nsnMatch[14];
+        });
+
+        console.log(csvObjects);
 
         //1. Solicitation Number
         //csvObject.solicitationNumber = getSolicitationNumber(page1Text);
