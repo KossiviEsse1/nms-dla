@@ -4,22 +4,28 @@ import { useState } from "react";
 type UploadStatus = "idle" | "uploading" | "success" | "error" | "noMatch";
 
 export default function FileUpload() {
-    const [file, setFile] = useState<File | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
-    const [pdfText, setPdfText] = useState<string>("");
     const [dragActive, setDragActive] = useState<boolean>(false);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if(files && files.length > 0) {
-            const file = files[0];
-            if(file.type === "application/pdf") {
-                setFile(file);
-                setUploadStatus("idle");
-            } else {
-                alert("Please upload a PDF file");
-                return;
+        const allfiles = event.target.files;
+        if(allfiles && allfiles.length > 0) {
+            for(const file of allfiles) {
+                if(file.type !== "application/pdf") {
+                    setFiles([]);
+                    alert("All files in your folder must be PDFs");
+                    return;
+                }
             }
+            const filesArray = Array.from(allfiles);
+            console.log(filesArray);
+            setFiles(files => filesArray);
+            setUploadStatus("idle");
+        } else {
+            alert("Folder must contain PDF files");
+            setFiles([]);
+            setUploadStatus("idle");
         }
     }
 
@@ -37,30 +43,35 @@ export default function FileUpload() {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-        
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            const file = e.dataTransfer.files[0];
-            if(file.type === "application/pdf") {
-                setFile(file);
-                setUploadStatus("idle");
-            } else {
-                alert("Please upload a PDF file");
-                return;
+        const allfiles = e.dataTransfer.files;
+        if (allfiles && allfiles.length > 0) {
+            for(const file of allfiles) {
+                if(file.type !== "application/pdf") {
+                    setFiles([]);
+                    alert("All files in your folder must be PDFs");
+                    return;
+                }
             }
+            const filesArray = Array.from(allfiles);
+            setFiles(files => filesArray);
+            setUploadStatus("idle");
+        } else {
+            alert("Folder must contain PDF files");
+            setFiles([]);
+            setUploadStatus("idle");
         }
     };
 
     const handleUpload = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if(!file) {
-            alert("Please upload a PDF file");
+        if(!files) {
+            alert("Please upload a folder containing PDF files");
             return;
         }
-
         setUploadStatus("uploading");
         
         const formData = new FormData();
-        formData.append("file", file);
+        files.forEach((file) => formData.append("pdfs", file));
 
         try {
             const response = await fetch("/api/pdfUpload", {
@@ -73,9 +84,8 @@ export default function FileUpload() {
             }
             
             const data = await response.json();
-            if(data.type == "NSN Match") {
+            if(data.response.trim().length > 0) {
                 downloadCsv(data.response);
-                setPdfText(data.response);
                 setUploadStatus("success");
             } else {
                 setUploadStatus("noMatch");
@@ -86,9 +96,19 @@ export default function FileUpload() {
         }
     }
 
+    const getFileSize = () => {
+        if(!files) {
+            return 0;
+        }
+        let size = 0;
+        for(const file of files) {
+            size += file.size;
+        }
+        return (size / 1024).toFixed(2);
+    }
+
     const resetForm = () => {
-        setFile(null);
-        setPdfText("");
+        setFiles(null);
         setUploadStatus("idle");
     }
 
@@ -120,12 +140,13 @@ export default function FileUpload() {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <p className="mt-2 text-sm text-gray-600">Drag and drop your PDF file here, or</p>
+                        <p className="mt-2 text-sm text-gray-600">Drag and drop your folder of PDF files here, or</p>
                         <label className="mt-2 inline-flex items-center px-4 py-2 bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
                             <span>Browse Files</span>
                             <input
                                 type="file"
-                                accept="application/pdf"
+                                multiple
+                                {...({ webkitdirectory: "", directory: "" } as any)}
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
@@ -134,7 +155,7 @@ export default function FileUpload() {
                     </div>
                 </div>
 
-                {file && (
+                {files && files.length > 0 && (
                     <div className="mt-4 p-4 bg-gray-100 rounded-md">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
@@ -142,8 +163,8 @@ export default function FileUpload() {
                                     <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
                                 </svg>
                                 <div className="ml-2">
-                                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                                    <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(2)} KB</p>
+                                    <p className="text-sm font-medium text-gray-900">Folder</p>
+                                    <p className="text-xs text-gray-500">{getFileSize()} KB</p>
                                 </div>
                             </div>
                             <button 
@@ -184,7 +205,7 @@ export default function FileUpload() {
                 )}
             </form>
             
-            {uploadStatus === "success" && pdfText && (
+            {uploadStatus === "success" && (
                 <div className="mt-6">
                     <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
                         <div className="flex">
@@ -195,7 +216,7 @@ export default function FileUpload() {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-green-700">
-                                    Document processed successfully! CSV Downloaded.
+                                    Documents processed successfully! CSV Downloaded.
                                 </p>
                             </div>
                         </div>
@@ -213,7 +234,7 @@ export default function FileUpload() {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-red-700">
-                                    No NSN match found. Please try another RFQ.
+                                    No NSN matches found. Maybe try another folder of NSNs.
                                 </p>
                             </div>
                         </div>
