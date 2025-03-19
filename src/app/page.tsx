@@ -28,7 +28,7 @@ export default function Home() {
             <DLALogo className="h-10 w-auto transform transition-transform duration-300 group-hover:scale-110" />
             <div className="font-bold text-xl md:text-2xl relative overflow-hidden">
               <span className="inline-block transition-transform duration-300 group-hover:translate-y-[-2px]">
-                Defense Logistics Agency
+                The DLA Vendor Network
               </span>
               <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-blue-300 transition-all duration-300 group-hover:w-full"></span>
             </div>
@@ -114,7 +114,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="max-w-lg pl-0 md:pl-4 lg:pl-6">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-5 leading-tight">
-                Defense Logistics Agency
+                The DLA Vendor Network
               </h1>
               <p className="text-lg md:text-xl mb-6 text-blue-100 font-medium">
                 Supporting America's Warfighters
@@ -223,7 +223,7 @@ export default function Home() {
             <div>
               <div className="flex items-center space-x-3 mb-4">
                 <DLALogo className="h-8 w-auto" />
-                <h3 className="font-bold text-lg">Defense Logistics Agency</h3>
+                <h3 className="font-bold text-lg">The DLA Vendor Network</h3>
               </div>
               <p className="text-blue-200 mb-4">Supporting America's Warfighters</p>
               <p className="text-sm text-blue-200">8725 John J. Kingman Road<br />Fort Belvoir, VA 22060-6221</p>
