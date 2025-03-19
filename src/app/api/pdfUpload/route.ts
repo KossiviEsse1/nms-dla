@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
 import sharp from 'sharp';
+import { getSchema } from "../nsnDBHelper";
 // @ts-ignore
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 
@@ -14,8 +15,46 @@ interface RFQRequirements {
     smallBusinessSetAsideIndicator: string,
     additionalClauseFillInsIndicator: string,
     rfqReturnByDate: string,
+    quoterForCageCode: string,
+    quoteForCageCode: string,
+    space8: string,
+    space9: string,
+    space10: string,
+    space11: string,
+    space12: string,
+    smallBusinessRepCode: string,
+    space14: string,
+    space15: string,
+    space16: string,
+    space17: string,
+    jointVenture: string,
+    jointVentureRemarks: '',
+    space20: string,
+    aaComplianceCode: string,
+    previousCandCReportsCode: string,
+    alternateDisputesResolution: string,
+    bidTypeCode: string,
+    promptPaymentDiscountTermsCode: string,
+    vendorQuoteNumber: string,
+    daysQuoteValid: string,
+    meetsPackagingRequirement: string,
+    boaFssBpa: string,
+    boaFssBpaContractNumber: string,
+    boaFssBpaContractExpirationDate: string,
     fobPoint: string,
+    fobCity: string,
+    fobState: string,
+    fobCountry: string,
     inspectionCodePoint: string,
+    placeOfGovernmentInspectionPackagingCageCode: string,
+    placeOfGovernmentInspectionSuppliesCageCode: string,
+    space39: string,
+    space40: string,
+    space41: string,
+    space42: string,
+    space43: string,
+    solicitationLineNumber: string,
+    space45: string,
     purchaseRequestNumber: string,
     nationalStockNumber: string,
     unitOfIssue: string,
@@ -25,13 +64,74 @@ interface RFQRequirements {
     doMinimum: string,
     contractMaximum: string,
     annualFrequencyOfBuys: string,
+    noDOMinimumQuantity: string,
     hubZonePreferenceIndicator: string,
+    waiverOfHubZonePreference: string,
+    immediateShipmentPrice: string,
+    immediateShipmentDeliveryDays: string,
+    space61: string,
     tradeAgreementsIndicator: string,
+    sourceOfSupplyCageCode: string,
+    firstArticleWaiverCode: string,
+    hazardousMaterialIdentificationAndMaterialSafetyData: string,
+    hazardousWarningLabels: string,
+    materialRequirements: string,
     buyAmericanIndicator: string,
     freeTradeAgreementsIndicator: string,
+    bAFtTaEndProduct: string,
+    bAFtTaCountryOfOriginCode: string,
+    bAFtTaCountryCode: string,
+    dutyFreeEntryRequested: string,
+    dutyFreeEntryRequestedForeignSuppliesInUSCode: string,
+    dutyFreeEntryRequestedDutyPaidCode: string,
+    dutyFreeEntryRequestedDutyPaidAmount: string,
     priceBreaksSolicitedIndicator: string,
+    space78: string,
+    space79: string,
+    space80: string,
+    space81: string,
+    space82: string,
+    space83: string,
+    space84: string,
+    space85: string,
+    space86: string,
+    space87: string,
+    space88: string,
+    space89: string,
+    space90: string,
+    space91: string,
+    space92: string,
+    space93: string,
+    space94: string,
+    space95: string,
+    quantityVariancePlus: string,
+    quantityVarianceMinus: string,
+    minimumOrderQuantityCode: string,
+    minimumOrderMaximumQuantity: string,
+    immediateShipmentAvailable: string,
+    immediateShipmentQuantity: string,
+    manufacturerDealer: string,
+    actualManufacturingProductionSourceCageCode: string,
+    actualManufacturingProductionSourceNameAndAddress: string,
     itemDescriptionIndicator: string,
+    partNumberOfferedCode: string,
+    partNumberOfferedCageCode: string,
+    partNumberOfferedPartNumber: string,
+    partNumberOfferedRemarks: string,
+    suppliesOffered: string,
+    suppliesOfferedRemarks: string,
+    qualificationRequirementsMfgCage: string,
+    qualificationRequirementsSourceCage: string,
+    qualificationRequirementsItemName: string,
+    qualificationRequirementsServiceIdentification: string,
+    qualificationRequirementsTestNumber: string,
     higherLevelQualityIndicator: string,
+    higherLevelQualityCode: string,
+    higherLevelQualityRemarks: string,
+    childLaborCertificationCode: string,
+    quoteRemarks: string,
+    index: number,
+    unitPrice: string,
 }
 
 interface lineItem {
@@ -60,8 +160,46 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     smallBusinessSetAsideIndicator: '',
     additionalClauseFillInsIndicator: '',
     rfqReturnByDate: '',
+    quoterForCageCode: '',
+    quoteForCageCode: '',
+    space8: '',
+    space9: '',
+    space10: '',
+    space11: '',
+    space12: '',
+    smallBusinessRepCode: '',
+    space14: '',
+    space15: '',
+    space16: '',
+    space17: '',
+    jointVenture: '',
+    jointVentureRemarks: '',
+    space20: '',
+    aaComplianceCode: '',
+    previousCandCReportsCode: '',
+    alternateDisputesResolution: '',
+    bidTypeCode: '',
+    promptPaymentDiscountTermsCode: '',
+    vendorQuoteNumber: '',
+    daysQuoteValid: '',
+    meetsPackagingRequirement: '',
+    boaFssBpa: '',
+    boaFssBpaContractNumber: '',
+    boaFssBpaContractExpirationDate: '',
     fobPoint: '',
+    fobCity: '',
+    fobState: '',
+    fobCountry: '',
     inspectionCodePoint: '',
+    placeOfGovernmentInspectionPackagingCageCode: '',
+    placeOfGovernmentInspectionSuppliesCageCode: '',
+    space39: '',
+    space40: '',
+    space41: '',
+    space42: '',
+    space43: '',
+    solicitationLineNumber: '',
+    space45: '',
     purchaseRequestNumber: '',
     nationalStockNumber: '',
     unitOfIssue: '',
@@ -71,222 +209,92 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     doMinimum: '',
     contractMaximum: '',
     annualFrequencyOfBuys: '',
+    noDOMinimumQuantity: '',
     hubZonePreferenceIndicator: '',
+    waiverOfHubZonePreference: '',
+    immediateShipmentPrice: '',
+    immediateShipmentDeliveryDays: '',
+    space61: '',
     tradeAgreementsIndicator: '',
+    sourceOfSupplyCageCode: '',
+    firstArticleWaiverCode: '',
+    hazardousMaterialIdentificationAndMaterialSafetyData: '',
+    hazardousWarningLabels: '',
+    materialRequirements: '',
     buyAmericanIndicator: '',
     freeTradeAgreementsIndicator: '',
+    bAFtTaEndProduct: '',
+    bAFtTaCountryOfOriginCode: '',
+    bAFtTaCountryCode: '',
+    dutyFreeEntryRequested: '',
+    dutyFreeEntryRequestedForeignSuppliesInUSCode: '',
+    dutyFreeEntryRequestedDutyPaidCode: '',
+    dutyFreeEntryRequestedDutyPaidAmount: '',
     priceBreaksSolicitedIndicator: '',
+    space78: '',
+    space79: '',
+    space80: '',
+    space81: '',
+    space82: '',
+    space83: '',
+    space84: '',
+    space85: '',
+    space86: '',
+    space87: '',
+    space88: '',
+    space89: '',
+    space90: '',
+    space91: '',
+    space92: '',
+    space93: '',
+    space94: '',
+    space95: '',
+    quantityVariancePlus: '',
+    quantityVarianceMinus: '',
+    minimumOrderQuantityCode: '',
+    minimumOrderMaximumQuantity: '',
+    immediateShipmentAvailable: '',
+    immediateShipmentQuantity: '',
+    manufacturerDealer: '',
+    actualManufacturingProductionSourceCageCode: '',
+    actualManufacturingProductionSourceNameAndAddress: '',
+    partNumberOfferedCode: '',
+    partNumberOfferedCageCode: '',
+    partNumberOfferedPartNumber: '',
+    partNumberOfferedRemarks: '',
+    suppliesOffered: '',
+    suppliesOfferedRemarks: '',
+    qualificationRequirementsMfgCage: '',
+    qualificationRequirementsSourceCage: '',
+    qualificationRequirementsItemName: '',
+    qualificationRequirementsServiceIdentification: '',
+    qualificationRequirementsTestNumber: '',
+    higherLevelQualityIndicator: '',
+    higherLevelQualityCode: '',
+    higherLevelQualityRemarks: '',
+    childLaborCertificationCode: '',
+    quoteRemarks: '',
     itemDescriptionIndicator: '',
-    higherLevelQualityIndicator: ''
+    index: 0,
+    unitPrice: '',
 })
 
 export async function POST(req: Request) {
     try {
         // @ts-ignore
         await import('pdfjs-dist/build/pdf.worker.mjs');
-
         const formData = await req.formData();
-        const file = formData.get("file");
-        if (!file) {
-            return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+        const files = formData.getAll("pdfs");
+        if(!files) {
+            return NextResponse.json({ error: "No files uploaded" }, { status: 400 });
         }
-
-        // Write the uploaded file to temp directory
-        const arrayBuffer = await (file as File).arrayBuffer();
-        //const buffer = Buffer.from(arrayBuffer);
-        const uint8ArrayBuffer : Uint8Array = new Uint8Array(arrayBuffer);
-        const pdf = await pdfjs.getDocument({data: uint8ArrayBuffer}).promise;
-
-        const csvObject = emptyRFQRequirements();
-
-        //Get Page 1 fields
-        const page1 = await pdf.getPage(1);
-        const page1TextContent = await page1.getTextContent();
-        const page1Text = page1TextContent.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
-
-        let allTextPages = page1Text;
-        for(let i = 2; i<=pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const pageText = await page.getTextContent();
-            allTextPages += pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+        const nsnDBArray = await getSchema();
+        if(nsnDBArray.length == 0) {
+            return NextResponse.json({ error: "No NSN DB found" }, { status: 400 });
         }
-
-        //1. Solicitation Number
-        csvObject.solicitationNumber = getSolicitationNumber(page1Text);
-
-        //2. Solicitation Type Indicator
-        csvObject.solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
-
-        //3. Small Business Set-Aside Indicator
-        csvObject.smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
-
-        //4. Additional Clause Fill-In Indicators, unsure what identifies a Y
-        csvObject.additionalClauseFillInsIndicator = "N";
-
-        //5. RFQ Return By Date
-        csvObject.rfqReturnByDate = getReturnByDate(page1Text);
-
-        //6. Quoter Cage Code, not an RFQ requirement, default to blank, look to website for conditions
-        //7. Quote for Cage Code, not an RFQ requirement, default to blank, look to website for conditions
-        //8 - 12 Blank
-        //13. Small Business and Other Contractor Representations Code, not an RFQ requirement, default to blank, look to website for conditions
-        //14 - 17 Blank
-        //18. Joint Venture -- Not an RFQ requirement, default to blank, look to website for conditions
-        //19. Joint Venture Remarks -- Not an RFQ requirement, default to blank, look to website for conditions
-        //20. Blank
-        //21. Affirmative Action Compliance Code -- Not an RFQ requirement, default to blank, look to website for conditions
-        //22. Previous Contracts and Compliance Reports Code -- Not an RFQ requirement, default to blank, look to website for conditions
-        //23. Alternate Disputes Resolution -- Not an RFQ requirement, default to blank, look to website for conditions
-        //24. Bid Type Code -- Not an RFQ requirement, default to BI, look to website for conditions
-        //25. Prompt Payment Discount Terms Code -- Not an RFQ requirement, default to 1, look to website for conditions
-        //26. Vendor Quote Number -- Not an RFQ requirement, default to blank, self entered
-        //27. Days Quote Valid -- Not an RFQ requirement, default to 90, self entered, implications for 24
-        //28. Meets Packaging Requirement -- Not an RFQ requirement, default to blank, look to website for conditions, self entered
-        //29. Basic Ordering Agreement (BOA)/ Federal Supply Schedule (FSS)/Blanket Purchase Agreement (BPA). -- Not an RFQ Requirement, default to NAP, look to website for conditions
-        //30. BOA/FSS/BPA Contract Number -- Not an RFQ Requirement, default to blank, look to website for conditions
-        //31. BOA/FSS/BPA Contract Expiration Date -- Not an RFQ Requirement, default to blank, look to website for conditions
-
-        //32. FOB Point, can have several
-        const fobPointsArray = getFOBPoint(allTextPages);
-        csvObject.fobPoint = fobPointsArray[0];
-
-        //33. FOB City -- Not an RFQ requirement, default to blank, look to website for conditions
-        //34. FOB State/Province -- Not an RFQ requirement, default to blank, look to website for conditions
-        //35. FOB Country -- Not an RFQ requirement, default to blank, look to website for conditions
-
-        //36. Inspection Point Code, can have several
-        //currently only supports one Inspection Point
-        csvObject.inspectionCodePoint = getInspectionPoint(allTextPages);
-
-        //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
-        //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
-        //39. Reserved -- Not an RFQ requirement, default to N
-        //40- 43 Blank
-
-        //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
-        const solicitationLineNumbers = getSolicitationLineNumber(fobPointsArray);
-        
-        //45. RESERVED -- Not an RFQ requirement, default to blank
-
-        //46. Purchase Request Number -- written to support many PR Nos, but focused on one for now
-        csvObject.purchaseRequestNumber = getPurchaseRequestNumber(page1Text, allTextPages)[0];
-
-        //47. National Stock Number / Part Number -- Will match "NSN/MATERIAL: " Can have multiple, focusing on one for now
-        csvObject.nationalStockNumber = getNationalStockNumber(allTextPages)[0];
-
-        //48. Unit of Issue -- can have several line items, using regex to find them, assuming for one
-        const unitOfIssueArray = getUnitOfIssue(allTextPages);
-        csvObject.unitOfIssue = unitOfIssueArray[0].UI;
-        //49. Quantity -- Leveraging line items to get the quantity
-        csvObject.quantity = unitOfIssueArray[0].QUANTITY;
-
-        //50. Unit Price -- Not an RFQ requirement, default to blank, enter ourselves
-
-        //51. Delivery Days -- follows "Delivery (in days):" in RFQ
-        csvObject.deliveryDays = getDeliveryDays(allTextPages)[0];
-        
-        //52. Guaranteed Minimum -- Identified with "Guaranteed Contract Minimum Quantity:" otherwise blank, there may be multiple, focusing on one for now
-        const guaranteedMinimum = getGuaranteedMinimum(allTextPages);
-        if(guaranteedMinimum.length != 0) {
-            //Assuming only one guaranteed minimum per RFQ
-            csvObject.guaranteedMinimum = guaranteedMinimum[0];
-        }
-
-        //53. DO Minimum -- If 56 is yes, leave blank, else "Minimum Delivery Order Quantity: "
-        const doMinimum = getDOMinimum(allTextPages);
-        if(doMinimum.length != 0) {
-            csvObject.doMinimum = doMinimum[0];
-        }
-
-        //54. Contract Maximum -- Can be found with "Contract Maximum Value:  " leave blank if 52 and 53 blank
-        const contractMaximum = getContractMaximum(allTextPages);
-        if(contractMaximum.length != 0) {
-            csvObject.contractMaximum = contractMaximum[0];
-        }
-
-        //55. Annual Frequency of Buys (AFB) -- Can be found with "Estimated Number of orders: " if no gauranteed Minimum, leave blank
-        const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages);
-        if(annualFrequencyOfBuys.length != 0) {
-            csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys[0];
-        }
-        
-        //56. No DO Minimum Quantity? -- Not an RFQ requirement, default to blank
-
-        //57. HUBZone Preference Indicator -- If "FAR 52.219-4 Notice of Price Evaluation Preference for HUBZone Small Business Concerns" is in the text, Y, else N
-        csvObject.hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
-
-        //58. Waiver of HUBZone Preference -- Not an RFQ requirement, default to blank
-        //59. Immediate Shipment Price -- Not an RFQ requirement, default to blank
-        //60. Immediate Shipment Delivery Days -- Not an RFQ requirement, default to blank
-        //61. RESERVED, default to blank
-
-        //62. Trade Agreements Indicator -- Need to fix condition for I
-        csvObject.tradeAgreementsIndicator = getTradeAgreementsIndicator(allTextPages);
-        
-        //63. Source of Supply Cage Code -- Not an RFQ requirement, default to blank
-        //64. First Article Waiver Code -- Not an RFQ requirement, default to blank
-        //65. Hazardous Material Identification and Material Safety Data -- Not an RFQ requirement, default to blank
-        //66. Hazardous Warning Labels -- Not an RFQ requirement, default to blank
-        //67. Material Requirements -- Not an RFQ requirement, default to blank
-
-        //68. Buy American Indicator
-        csvObject.buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
-
-        //69. Free Trade Agreements Indicator
-        csvObject.freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
-
-        //70. Buy American/Free Trade/Trade Agreements End Product -- Not an RFQ requirement, default to blank
-        //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Not an RFQ requirement, default to blank
-        //72. Buy American / Free Trade / Trade Agreements Country Code -- Not an RFQ requirement, default to blank
-        //73. Duty Free Entry Requested -- N Default, Not an RFQ requirement
-        //74. Duty Free Entry Requested/Foreign Supplies in US Code -- Not an RFQ requirement, default to blank
-        //75. Duty Free Entry Requested/Duty Paid Code -- Not an RFQ requirement, default to blank
-        //76. Duty Free Entry Requested/Duty Paid Amount -- Not an RFQ requirement, default to blank
-
-        //77. Price Breaks Solicited Indicator -- if contains "Please provide the following price breaks" then Y, else N, don't leave blank
-        csvObject.priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);        
-
-        //SPE7M225Q0426 has some edge cases for many values
-        //78 - 95, are quantities taken from RFQ if 77 is Y, currently not going to bother
-        //96. Quantity Variance Plus -- Not an RFQ requirement, but gathered from RFQ, skipping for now
-        //97. Quantity Variance Minus -- Not an RFQ requirement, but gathered from RFQ, skipping for now
-        //98. Minimum Order Quantity Code -- Not an RFQ requirement, default to N, look at website to see conditions
-        //99. Minimum Order Maximum Quantity -- Not an RFQ requirement, default to blank, if 98 is Y, must enter value, else blank
-        //100. Immediate Shipment Available -- Not an RFQ requirement, default to N, look at website for conditions
-        //101. Immediate Shipment Quantity -- Not an RFQ requirement, default to blank, conditions on answering in the website
-        //102. Manufacturer/Dealer -- Not an RFQ requirement, You enter value based on conditions
-        //103. Actual Manufacturing/Production Source CAGE code -- Not an RFQ requirement, conditions for entering on website, default blank
-        //104. Actual Manufacturing/Production Source Name and Address -- Not an RFQ requirement, A self entered text, conditions for entering on the website, default blank
-
-        //105. Item Description Indicator, Certain for B, Q, N, unsure about D, P, and S
-        csvObject.itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);    
-
-        //106. Part Number Offered Code -- Not an RFQ requirement, base is blank, enter yourself, conditions on website
-        //107. Part Number Offered CAGE code -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //108. Part Number Offered - Part Number -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //109. Part Number Offered Remarks -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //110. Supplies Offered -- Not an RFQ requirement, conditions on website, can be blank
-        //111. Supplies Offered Remarks -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //112. Qualification Requirements MFG CAGE -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //113. Qualification Requirements Source CAGE -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
-        //114. Qualification Requirements Item Name -- enter yourself, conditions on website, can be blank
-        //115. Qualification Requirements Service Identification -- enter yourself, conditions on website, can be blank
-        //116. Qualification Requirements Test Number -- enter yourself, conditions on website, can be blank
-
-        //117. Higher-Level Quality Indicator
-        csvObject.higherLevelQualityIndicator = getHigherLevelQualityIndicator(allTextPages);
-
-        //118. Higher-Level Quality Code -- enter yourself, conditions on website, can be blank
-        //119. Higher-Level Quality Remarks -- enter yourself, conditions on website, can be blank
-        //120. Child Labor Certification Code -- enter yourself, conditions on website, must be N, can't be blank
-        //121. Quote Remarks -- enter yourself, conditions on website, can be left blank
-
-        /*
-        There can be multiple NSN's per document, meaning we need to find values for all distinct NSN's
-        May be worth doing a first round of elimination, if we won't have the NSNs, no point in processing the rest of the document
-        */
-        const csvString = rfqRequirementsToCsv(csvObject);
-        return NextResponse.json({ response: csvString });
+        const fileArray = Array.isArray(files) ? files : [files];
+        const csvStrings = await Promise.all(fileArray.map((file) => getSolicitationData(file as File)));
+        return NextResponse.json({ response: csvStrings.join("\n") }, { status: 200 });
     } catch (error) {
         console.error("Error processing request:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -296,6 +304,222 @@ export async function POST(req: Request) {
 function getSolicitationNumber(text: string): string {
     const solicitationNumberRegex: RegExp = /REQUEST NO\.\s+(\S+)/;
     return text.match(solicitationNumberRegex)[1];
+}
+
+async function getSolicitationData(file: File): Promise<string> {
+    if (!file) {
+        return "";
+    }
+
+    // Write the uploaded file to temp directory
+    const arrayBuffer = await (file as File).arrayBuffer();
+    //const buffer = Buffer.from(arrayBuffer);
+    const uint8ArrayBuffer : Uint8Array = new Uint8Array(arrayBuffer);
+    const pdf = await pdfjs.getDocument({data: uint8ArrayBuffer}).promise;
+
+    const csvObject = emptyRFQRequirements();
+
+    //Get Page 1 fields
+    const page1 = await pdf.getPage(1);
+    const page1TextContent = await page1.getTextContent();
+    const page1Text = page1TextContent.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+
+    let allTextPages = page1Text;
+    for(let i = 2; i<=pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const pageText = await page.getTextContent();
+        allTextPages += pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
+    }
+
+    const nsnDBArray = await getSchema();
+    const nationalStockNumber = getNationalStockNumber(allTextPages)[0];
+
+    //Find NSN match in nsnDBArray, NSN is the 9th column
+    const prNumbers = getPurchaseRequestNumber(page1Text, allTextPages);
+    const nsnMatches = nsnDBArray.filter((nsn) => nsn[8] == nationalStockNumber && prNumbers.includes(nsn[6]));
+    if(nsnMatches.length == 0) {
+        //Return some response identifying that no match was found
+        return "";
+    }
+
+    const csvObjects: RFQRequirements[] = [];
+    for(let i = 0; i < prNumbers.length; i++) {
+        if(nsnMatches.some((nsn) => nsn[6] == prNumbers[i])) {
+            const csvObject = emptyRFQRequirements();
+            csvObject.purchaseRequestNumber = prNumbers[i];
+            csvObject.nationalStockNumber = nationalStockNumber;
+            csvObject.index = i;
+            csvObjects.push(csvObject);
+        }
+    }
+
+    const unitOfIssueArray = getUnitOfIssue(allTextPages);
+
+    //1. Solicitation Number -- Finished
+    const solicitationNumber = getSolicitationNumber(page1Text);
+    //2. Solicitation Type Indicator -- Unfinished
+    const solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
+    //3. Small Business Set-Aside Indicator -- Unfinished
+    const smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
+    //4. Additional Clause Fill-In Indicators -- Unfinished
+    const additionalClauseFillInsIndicator = "N";
+    //5. Return By Date -- Finished
+    const rfqReturnByDate = getReturnByDate(page1Text);
+    //6. Quoter for Cage Code -- 1J8D2 for now
+    //7. Quote for CAGE Code -- Blank for now
+    //8-12 Reserved
+    //13. Small Business and Other Contractor Representations Code -- Default to M for our user, will need to update later
+    //18. Joint Venture -- Defaulting to blank
+    //19. Joint Venture Remarks -- Defaulting to blank
+    //20. Reserved
+    //21. Affirmative Action Compliance Code -- Defaulting to blank
+    //22. Previous Contracts and Compliance Reports Code -- Defaulting to blank
+    //23. Alternate Disputes Resolution -- Defaulting to blank
+    //24. Bid Type Code -- Defaulting to BI
+    //25. Prompt Payment Discount Terms Code -- Defaulting to 1
+    //26. Vendor Quote Number -- Defaulting to blank
+    //27. Days Quote Valid -- Defaulting to 90
+    //28. Meets Packaging Requirement -- Default to N
+    //29. Basic Ordering Agreement (BOA)/ Federal Supply Schedule (FSS)/Blanket Purchase Agreement (BPA). -- Default to NAP
+    //30. BOA/FSS/BPA Contract Number -- Default to blank
+    //31. BOA/FSS/BPA Contract Expiration Date -- Default to blank
+    //32. FOB Point, can have several -- Finished
+    const fobPoint = getFOBPoint(allTextPages);
+    //33-35 Is information that must be collected from our customers
+    //33. FOB City -- Default to blank
+    //34. FOB State/Province -- Default to blank
+    //35. FOB Country -- Default to blank
+    //36. Inspection Point Code, can have several -- Finished
+    const inspectionCodePoint = getInspectionPoint(allTextPages);
+    //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
+    //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
+    //39 - 43 Reserved
+    //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
+    const solicitationLineNumbers = getSolicitationLineNumber(fobPoint);
+    //45. RESERVED -- Not an RFQ requirement, default to blank
+    //46. Purchase Request Number -- Already included in csvObjects
+    //47. National Stock Number / Part Number -- Already included in csvObjects
+    //48. Unit of Issue -- From Unit of Issue Array
+    //49. Quantity -- From Unit of Issue Array
+    //50. Unit Price -- From Unit of Issue Array
+    //51. Delivery Days -- From Delivery Days Array
+    const deliveryDays = getDeliveryDays(allTextPages)[0];
+    //52. Guaranteed Minimum -- From Guaranteed Minimum Array
+    const guaranteedMinimum = getGuaranteedMinimum(allTextPages).length != 0 ? getGuaranteedMinimum(allTextPages)[0] : "";
+    //53. DO Minimum -- From DO Minimum Array
+    const doMinimum = getDOMinimum(allTextPages).length != 0 ? getDOMinimum(allTextPages)[0] : "";
+    //54. Contract Maximum -- From Contract Maximum Array
+    const contractMaximum = getContractMaximum(allTextPages).length != 0 ? getContractMaximum(allTextPages)[0] : "";
+    //55. Annual Frequency of Buys -- From Annual Frequency of Buys Array
+    const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages).length != 0 ? getAnnualFrequencyOfBuys(allTextPages)[0] : "";
+    //56. No DO Minimum Quantity? -- Not an RFQ requirement, default to blank
+    //57. HubZone Preference Indicator         
+    const hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
+    //58. Waiver of HUBZone Preference -- Default to blank
+    //59. Immediate Shipment Price -- Not an RFQ requirement, default to blank
+    //60. Immediate Shipment Delivery Days -- Not an RFQ requirement, default to blank
+    //61. RESERVED, default to blank
+    //62. Trade Agreements Indicator -- Need to fix condition for I
+    const tradeAgreementsIndicator = getTradeAgreementsIndicator(allTextPages);
+    //63. Source of Supply Cage Code -- Unfinished
+    //64. First Article Waiver Code -- Default to Blank
+    //65. Hazardous Material Identification and Material Safety Data -- Default to N
+    //66. Hazardous Warning Labels -- Not an RFQ requirement, default to blank
+    //67. Material Requirements -- Default to 0
+    //68. Buy American Indicator
+    const buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
+    //69. Free Trade Agreements Indicator -- Unfinished no default
+    const freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
+    //70. Buy American/Free Trade/Trade Agreements End Product -- Default to blank
+    //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Default to blank
+    //72. Buy American / Free Trade / Trade Agreements Country Code -- Default to blank
+    //73. Duty Free Entry Requested -- N Default
+    //74. Duty Free Entry Requested/Foreign Supplies in US Code -- Default to blank
+    //75. Duty Free Entry Requested/Duty Paid Code -- Default to blank
+    //76. Duty Free Entry Requested/Duty Paid Amount -- Default to blank
+    //77. Price Breaks Solicited Indicator -- if contains "Please provide the following price breaks" then Y, else N, don't leave blank
+    const priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);
+    //96. Quantity Variance Plus -- Unfinished, Default 0
+    //97. Quantity Variance Minus -- Unfinished, Default 0
+    //98. Minimum Order Quantity Code -- Not an RFQ requirement, Default to N
+    //99. Minimum Order Maximum Quantity -- Not an RFQ requirement, default to blank
+    //100. Immediate Shipment Available -- Not an RFQ requirement, default to N, look at website for conditions
+    //101. Immediate Shipment Quantity -- Not an RFQ requirement, default to blank, conditions on answering in the website
+    //102. Manufacturer/Dealer -- Not an RFQ requirement, Default DD
+    //103. Actual Manufacturing/Production Source CAGE code -- Not an RFQ requirement, conditions for entering on website, default blank
+    //104. Actual Manufacturing/Production Source Name and Address -- Not an RFQ requirement, A self entered text, conditions for entering on the website, default blank
+    //105. Item Description Indicator, Certain for B, Q, N, unsure about D, P, and S, needs work
+    const itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);
+    //106. Part Number Offered Code -- Not an RFQ requirement, base is blank, enter yourself, conditions on website
+    //107. Part Number Offered CAGE code -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //108. Part Number Offered - Part Number -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //109. Part Number Offered Remarks -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //110. Supplies Offered -- Not an RFQ requirement, conditions on website, can be blank
+    //111. Supplies Offered Remarks -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //112. Qualification Requirements MFG CAGE -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //113. Qualification Requirements Source CAGE -- Not an RFQ requirement, enter yourself, conditions on website, can be blank
+    //114. Qualification Requirements Item Name -- enter yourself, conditions on website, can be blank
+    //115. Qualification Requirements Service Identification -- enter yourself, conditions on website, can be blank
+    //116. Qualification Requirements Test Number -- enter yourself, conditions on website, can be blank
+    //117. Higher-Level Quality Indicator
+    const higherLevelQualityIndicator = getHigherLevelQualityIndicator(allTextPages);
+    //118. Higher-Level Quality Code -- enter yourself, conditions on website, can be blank
+    //119. Higher-Level Quality Remarks -- enter yourself, conditions on website, can be blank
+    //120. Child Labor Certification Code -- enter yourself, conditions on website, default to N
+    //121. Quote Remarks -- enter yourself, conditions on website, can be left blank
+    
+    csvObjects.forEach((csvObject) => {
+        csvObject.solicitationNumber = solicitationNumber.replace(/\-/g, "");
+        csvObject.solicitationTypeIndicator = solicitationTypeIndicator;
+        csvObject.smallBusinessSetAsideIndicator = smallBusinessSetAsideIndicator;
+        csvObject.additionalClauseFillInsIndicator = additionalClauseFillInsIndicator;
+        csvObject.rfqReturnByDate = rfqReturnByDate;
+        csvObject.fobPoint = csvObject.index < fobPoint.length ? fobPoint[csvObject.index] : fobPoint[0];
+        csvObject.quoterForCageCode = '1J8D2';
+        csvObject.smallBusinessRepCode = 'M';
+        csvObject.aaComplianceCode = 'NA';
+        csvObject.previousCandCReportsCode = 'NA';
+        csvObject.bidTypeCode = 'BI';
+        csvObject.promptPaymentDiscountTermsCode = '1';
+        csvObject.daysQuoteValid = '90';
+        csvObject.meetsPackagingRequirement = 'N';
+        csvObject.boaFssBpa = 'NAP';
+        csvObject.inspectionCodePoint = inspectionCodePoint;
+        csvObject.placeOfGovernmentInspectionPackagingCageCode = '028F4';
+        csvObject.placeOfGovernmentInspectionSuppliesCageCode = '028F4';
+        csvObject.solicitationLineNumber = solicitationLineNumbers[csvObject.index];
+        csvObject.unitOfIssue = unitOfIssueArray[csvObject.index].UI;
+        csvObject.quantity = unitOfIssueArray[csvObject.index].QUANTITY;
+        csvObject.unitPrice = unitOfIssueArray[csvObject.index].UNIT_PRICE;
+        csvObject.deliveryDays = deliveryDays;
+        csvObject.guaranteedMinimum = guaranteedMinimum;
+        csvObject.doMinimum = doMinimum;
+        csvObject.contractMaximum = contractMaximum;
+        csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys;
+        csvObject.noDOMinimumQuantity = 'N';
+        csvObject.hubZonePreferenceIndicator = hubZonePreferenceIndicator;
+        csvObject.tradeAgreementsIndicator = tradeAgreementsIndicator;
+        csvObject.hazardousMaterialIdentificationAndMaterialSafetyData = 'N';
+        csvObject.materialRequirements = '0';
+        csvObject.buyAmericanIndicator = buyAmericanIndicator;
+        csvObject.freeTradeAgreementsIndicator = freeTradeAgreementsIndicator;
+        csvObject.dutyFreeEntryRequested = 'N';
+        csvObject.priceBreaksSolicitedIndicator = priceBreaksSolicitedIndicator;
+        csvObject.quantityVariancePlus = '0';
+        csvObject.quantityVarianceMinus = '0';
+        csvObject.immediateShipmentAvailable = 'N';
+        csvObject.manufacturerDealer = 'DD';
+        csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
+        csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
+        csvObject.childLaborCertificationCode = 'N';
+    });
+
+    csvObjects.forEach((csvObject) => {
+        const nsnMatch = nsnMatches.find((nsn) => nsn[6] == csvObject.purchaseRequestNumber && nsn[8] == csvObject.nationalStockNumber);
+        csvObject.unitPrice = nsnMatch[14];
+    });
+
+   return csvObjects.map((csvObject) => rfqRequirementsToCsv(csvObject)).join("\n");
 }
 
 function getSolicitationTypeIndicator(text: string): string {
@@ -547,9 +771,12 @@ function getBuyAmericanIndicator(text: string, csvObject: RFQRequirements): stri
 }
 
 function getItemDescriptionIndicator(text: string): string {
+    //Source Control Data, DLA may not own the drawing but they will direct you where to get it
     const itemDescriptionIndicatorRegex1 = /SOURCE CONTROL DATA/; //B
+    //Qualitfied Product List, like source controlled & DLA vets source, Vendors will need to make sure they're quoting bonafide parts
     const itemDescriptionIndicatorRegex2 = /QML or QPL Item/; //Q
     const itemDescriptionIndicatorRegex3 = /DETAILED DRAWING/; //D
+    //This is an unrestricted item
     const itemDescriptionIndicatorRegex4 = /FULL AND OPEN COMPETITION APPLY/; //D
     const itemDescriptionIndicator = text.match(itemDescriptionIndicatorRegex1);
     const itemDescriptionIndicator2 = text.match(itemDescriptionIndicatorRegex2);
