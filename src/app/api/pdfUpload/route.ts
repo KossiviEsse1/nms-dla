@@ -59,7 +59,8 @@ interface RFQRequirements {
     nationalStockNumber: string,
     unitOfIssue: string,
     quantity: string,
-    deliveryDays: string,
+    unitPrice: string,
+    deliveryDays: number,
     guaranteedMinimum: string,
     doMinimum: string,
     contractMaximum: string,
@@ -131,7 +132,6 @@ interface RFQRequirements {
     childLaborCertificationCode: string,
     quoteRemarks: string,
     index: number,
-    unitPrice: string,
 }
 
 interface lineItem {
@@ -204,7 +204,8 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     nationalStockNumber: '',
     unitOfIssue: '',
     quantity: '',
-    deliveryDays: '',
+    unitPrice: '',
+    deliveryDays: 0,
     guaranteedMinimum: '',
     doMinimum: '',
     contractMaximum: '',
@@ -258,6 +259,7 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     manufacturerDealer: '',
     actualManufacturingProductionSourceCageCode: '',
     actualManufacturingProductionSourceNameAndAddress: '',
+    itemDescriptionIndicator: '',
     partNumberOfferedCode: '',
     partNumberOfferedCageCode: '',
     partNumberOfferedPartNumber: '',
@@ -274,9 +276,7 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     higherLevelQualityRemarks: '',
     childLaborCertificationCode: '',
     quoteRemarks: '',
-    itemDescriptionIndicator: '',
     index: 0,
-    unitPrice: '',
 })
 
 export async function POST(req: Request) {
@@ -293,7 +293,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No NSN DB found" }, { status: 400 });
         }
         const fileArray: File[] = Array.isArray(files) ? files.map((file) => file as File) : [files as File];
-        console.log(fileArray);
+
         const matches = [];
         const nonMatches = [];
         const failures = [];
@@ -360,11 +360,13 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             const pageText = await page.getTextContent();
             allTextPages += pageText.items.filter((item) => item.str != " ").map((item) => item.str).join(" ");
         }
-
-        const nationalStockNumber = getNationalStockNumber(allTextPages)[0];
-        if(nationalStockNumber == "") {
+        //console.log(allTextPages);
+        const nationalStockNumberArray = getNationalStockNumber(allTextPages);
+        //Only dealing with single NSN for now, excluding FAT
+        if(nationalStockNumberArray.length == 0 || nationalStockNumberArray.length > 1 || nationalStockNumberArray.includes("0001S00000052") || nationalStockNumberArray.includes("0001S00000053")) {
             return ["noNSN", ""];
         }
+        const nationalStockNumber = nationalStockNumberArray[0];
 
         //Find NSN match in nsnDBArray, NSN is the 9th column
         const prNumbers = getPurchaseRequestNumber(page1Text, allTextPages);
@@ -381,16 +383,21 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
                 csvObject.purchaseRequestNumber = prNumbers[i];
                 csvObject.nationalStockNumber = nationalStockNumber;
                 csvObject.index = i;
+                csvObject.actualManufacturingProductionSourceCageCode = nsnMatches.find((nsn) => nsn[6] == prNumbers[i])[7];
+                csvObject.partNumberOfferedCageCode = nsnMatches.find((nsn) => nsn[6] == prNumbers[i])[7];
                 csvObjects.push(csvObject);
             }
         }
 
-        const unitOfIssueArray = getUnitOfIssue(allTextPages);
+        const unitOfIssueArray = getUnitOfIssue(allTextPages, nsnDBArray);
+
+        const totalUnits = unitOfIssueArray.reduce((a, b) => a + Number(b.QUANTITY), 0);
+
 
         //1. Solicitation Number -- Finished
         const solicitationNumber = getSolicitationNumber(page1Text);
         //2. Solicitation Type Indicator -- Unfinished
-        const solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages);
+        const solicitationTypeIndicator = getSolicitationTypeIndicator(allTextPages, totalUnits);
         //3. Small Business Set-Aside Indicator -- Unfinished
         const smallBusinessSetAsideIndicator = getSmallBusinessSetAsideIndicator(allTextPages);
         //4. Additional Clause Fill-In Indicators -- Unfinished
@@ -398,22 +405,22 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //5. Return By Date -- Finished
         const rfqReturnByDate = getReturnByDate(page1Text);
         //6. Quoter for Cage Code -- 1J8D2 for now
-        //7. Quote for CAGE Code -- Blank for now
+        //7. Quote for CAGE Code -- Blank for now -- Make it same as Quoter for Cage Code
         //8-12 Reserved
         //13. Small Business and Other Contractor Representations Code -- Default to M for our user, will need to update later
         //18. Joint Venture -- Defaulting to blank
         //19. Joint Venture Remarks -- Defaulting to blank
         //20. Reserved
-        //21. Affirmative Action Compliance Code -- Defaulting to blank
-        //22. Previous Contracts and Compliance Reports Code -- Defaulting to blank
-        //23. Alternate Disputes Resolution -- Defaulting to blank
+        //21. Affirmative Action Compliance Code -- Defaulting to NA
+        //22. Previous Contracts and Compliance Reports Code -- Defaulting to NA
+        //23. Alternate Disputes Resolution -- Defaulting to B
         //24. Bid Type Code -- Defaulting to BI
         //25. Prompt Payment Discount Terms Code -- Defaulting to 1
         //26. Vendor Quote Number -- Defaulting to blank
         //27. Days Quote Valid -- Defaulting to 90
         //28. Meets Packaging Requirement -- Default to N
         //29. Basic Ordering Agreement (BOA)/ Federal Supply Schedule (FSS)/Blanket Purchase Agreement (BPA). -- Default to NAP
-        //30. BOA/FSS/BPA Contract Number -- Default to blank
+        //30. BOA/FSS/BPA Contract Number -- Default to NAP
         //31. BOA/FSS/BPA Contract Expiration Date -- Default to blank
         //32. FOB Point, can have several -- Finished
         const fobPoint = getFOBPoint(allTextPages);
@@ -423,8 +430,8 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //35. FOB Country -- Default to blank
         //36. Inspection Point Code, can have several -- Finished
         const inspectionCodePoint = getInspectionPoint(allTextPages);
-        //37. Place of Government Inspection - Packaging CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
-        //38. Place of Government Inspection - Supplies CAGE code - Not an RFQ requirement, default to blank, look to website for conditions
+        //37. Place of Government Inspection - Packaging CAGE code - If inspection point is O, then 028F4, else blank
+        //38. Place of Government Inspection - Supplies CAGE code - If inspection point is O, then 028F4, else blank
         //39 - 43 Reserved
         //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
         const solicitationLineNumbers = getSolicitationLineNumber(fobPoint);
@@ -444,10 +451,10 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         const contractMaximum = getContractMaximum(allTextPages).length != 0 ? getContractMaximum(allTextPages)[0] : "";
         //55. Annual Frequency of Buys -- From Annual Frequency of Buys Array
         const annualFrequencyOfBuys = getAnnualFrequencyOfBuys(allTextPages).length != 0 ? getAnnualFrequencyOfBuys(allTextPages)[0] : "";
-        //56. No DO Minimum Quantity? -- Not an RFQ requirement, default to blank
+        //56. No DO Minimum Quantity? -- Not an RFQ requirement, if I, yes, else blank
         //57. HubZone Preference Indicator         
         const hubZonePreferenceIndicator = getHubZonePreferenceIndicator(allTextPages);
-        //58. Waiver of HUBZone Preference -- Default to blank
+        //58. Waiver of HUBZone Preference -- Default to N
         //59. Immediate Shipment Price -- Not an RFQ requirement, default to blank
         //60. Immediate Shipment Delivery Days -- Not an RFQ requirement, default to blank
         //61. RESERVED, default to blank
@@ -459,18 +466,22 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //66. Hazardous Warning Labels -- Not an RFQ requirement, default to blank
         //67. Material Requirements -- Default to 0
         //68. Buy American Indicator
-        const buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject);
+        const buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject, totalUnits);
         //69. Free Trade Agreements Indicator -- Unfinished no default
         const freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
-        //70. Buy American/Free Trade/Trade Agreements End Product -- Default to blank
-        //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Default to blank
-        //72. Buy American / Free Trade / Trade Agreements Country Code -- Default to blank
+        //70. Buy American/Free Trade/Trade Agreements End Product -- Todo
+        //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Todo
+        //72. Buy American / Free Trade / Trade Agreements Country Code -- Todo
         //73. Duty Free Entry Requested -- N Default
         //74. Duty Free Entry Requested/Foreign Supplies in US Code -- Default to blank
         //75. Duty Free Entry Requested/Duty Paid Code -- Default to blank
         //76. Duty Free Entry Requested/Duty Paid Amount -- Default to blank
         //77. Price Breaks Solicited Indicator -- if contains "Please provide the following price breaks" then Y, else N, don't leave blank
         const priceBreaksSolicitedIndicator = getPriceBreaksSolicitedIndicator(allTextPages);
+        if(priceBreaksSolicitedIndicator == "Y") {
+            return ["noMatch", nationalStockNumber];
+        }
+        //78 - 95 left empty, not worrying about RFQ's with price breaks
         //96. Quantity Variance Plus -- Unfinished, Default 0
         //97. Quantity Variance Minus -- Unfinished, Default 0
         //98. Minimum Order Quantity Code -- Not an RFQ requirement, Default to N
@@ -511,38 +522,53 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.smallBusinessRepCode = 'M';
             csvObject.aaComplianceCode = 'NA';
             csvObject.previousCandCReportsCode = 'NA';
+            csvObject.alternateDisputesResolution = 'B';
             csvObject.bidTypeCode = 'BI';
             csvObject.promptPaymentDiscountTermsCode = '1';
             csvObject.daysQuoteValid = '90';
-            csvObject.meetsPackagingRequirement = 'N';
+            csvObject.meetsPackagingRequirement = 'Y';
             csvObject.boaFssBpa = 'NAP';
             csvObject.inspectionCodePoint = inspectionCodePoint;
-            csvObject.placeOfGovernmentInspectionPackagingCageCode = '028F4';
-            csvObject.placeOfGovernmentInspectionSuppliesCageCode = '028F4';
+            csvObject.placeOfGovernmentInspectionPackagingCageCode = csvObject.inspectionCodePoint == 'O' ? '028F4' : '';
+            csvObject.placeOfGovernmentInspectionSuppliesCageCode = csvObject.inspectionCodePoint == 'O' ? '028F4' : '';
+            csvObject.space39 = 'N';
             csvObject.solicitationLineNumber = solicitationLineNumbers[csvObject.index];
             csvObject.unitOfIssue = unitOfIssueArray[csvObject.index].UI;
             csvObject.quantity = unitOfIssueArray[csvObject.index].QUANTITY;
             csvObject.unitPrice = unitOfIssueArray[csvObject.index].UNIT_PRICE;
-            csvObject.deliveryDays = deliveryDays;
+            csvObject.deliveryDays = parseInt(deliveryDays, 10);
             csvObject.guaranteedMinimum = guaranteedMinimum;
             csvObject.doMinimum = doMinimum;
             csvObject.contractMaximum = contractMaximum;
             csvObject.annualFrequencyOfBuys = annualFrequencyOfBuys;
-            csvObject.noDOMinimumQuantity = 'N';
+            csvObject.noDOMinimumQuantity = (csvObject.solicitationTypeIndicator == 'I') ? 'N' : '';
             csvObject.hubZonePreferenceIndicator = hubZonePreferenceIndicator;
+            csvObject.waiverOfHubZonePreference = (csvObject.hubZonePreferenceIndicator == 'N') ? '' : 'N';
             csvObject.tradeAgreementsIndicator = tradeAgreementsIndicator;
             csvObject.hazardousMaterialIdentificationAndMaterialSafetyData = 'N';
             csvObject.materialRequirements = '0';
             csvObject.buyAmericanIndicator = buyAmericanIndicator;
             csvObject.freeTradeAgreementsIndicator = freeTradeAgreementsIndicator;
-            csvObject.dutyFreeEntryRequested = 'N';
+            csvObject.dutyFreeEntryRequested = csvObject.buyAmericanIndicator == 'I' ? '' : 'N';
+            csvObject.dutyFreeEntryRequestedForeignSuppliesInUSCode = csvObject.buyAmericanIndicator == 'I' ? '' : csvObject.dutyFreeEntryRequested == 'Y' ? 'N' : '';
+            csvObject.dutyFreeEntryRequestedDutyPaidCode = csvObject.buyAmericanIndicator == 'I' ? '' : csvObject.dutyFreeEntryRequestedForeignSuppliesInUSCode == 'Y' ? 'N' : '';
+            csvObject.dutyFreeEntryRequestedDutyPaidAmount = csvObject.buyAmericanIndicator == 'I' ? '' : csvObject.dutyFreeEntryRequestedDutyPaidCode == 'N' ? '0' : '';
             csvObject.priceBreaksSolicitedIndicator = priceBreaksSolicitedIndicator;
             csvObject.quantityVariancePlus = '0';
             csvObject.quantityVarianceMinus = '0';
+            csvObject.minimumOrderQuantityCode = 'N';
+            csvObject.minimumOrderMaximumQuantity = csvObject.minimumOrderQuantityCode == 'N' ? '' : '1';
             csvObject.immediateShipmentAvailable = 'N';
+            csvObject.immediateShipmentQuantity = csvObject.immediateShipmentAvailable == 'Y' ? '0' : '';
             csvObject.manufacturerDealer = 'DD';
             csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
+            csvObject.partNumberOfferedCode = '1';
+            csvObject.partNumberOfferedCageCode = ['P','B','N'].includes(itemDescriptionIndicator) ? csvObject.partNumberOfferedCageCode : '';
+            csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? '' : csvObject.purchaseRequestNumber;
+            csvObject.suppliesOffered = ['D','B','Q'].includes(itemDescriptionIndicator) ? '1' : '';
+
             csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
+            csvObject.higherLevelQualityCode = higherLevelQualityIndicator == 'N' ? '' : higherLevelQualityIndicator;
             csvObject.childLaborCertificationCode = 'N';
         });
 
@@ -558,9 +584,12 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
     }
 }
 
-function getSolicitationTypeIndicator(text: string): string {
+function getSolicitationTypeIndicator(text: string, totalUnits: number): string {
+    const procurementHistory = getProcurementHistory(text);
     if(text.includes("UNILATERAL IDC")) {
         return "I"
+    } else if(isLessThanMicroPurchase(procurementHistory, totalUnits)) {
+        return "F"
     }
     return "P";
 }
@@ -638,7 +667,44 @@ function getNationalStockNumber(text: string): string[] {
     }
 }
 
-function getUnitOfIssue(text: string): lineItem[] {
+function getProcurementHistory(text: string): string[][] {
+    const procurementHistory = /(?<=Contract Number Quantity Unit Cost AWD Date Surplus Material \. ).*?(?=CONTINUATION SHEET REFERENCE NO\.)/g;
+    const procurementHistoryMatch = text.match(procurementHistory);
+    if(procurementHistoryMatch != null) {
+        const procurementHistoryArray: string[][] = [];
+        let array: string[] = [];
+        let count = 0;
+        procurementHistoryMatch.forEach((history) => {
+            const historyArray = history.trim().split(" ");
+            historyArray.forEach((item) => {
+                if(count == 6) {
+                    procurementHistoryArray.push(array);
+                    count = 1;
+                    array = [];
+                    array.push(item);
+                } else {
+                    array.push(item);
+                    count++;
+                }
+            });
+        });
+        return procurementHistoryArray;
+    } else {
+        return [[""]];
+    }
+}
+
+function isLessThanMicroPurchase(procurementHistory: string[][], totalUnits: number): string {
+    const maxUnitPrice = procurementHistory.map((history) => Number(history[3])).reduce((a, b) => Math.max(a, b));
+    console.log(maxUnitPrice);
+    if(maxUnitPrice * totalUnits < 10000) {
+        return "Y";
+    } else {
+        return "N";
+    }
+}
+
+function getUnitOfIssue(text: string, nsnDBArray: string[][]): lineItem[] {
     const unitOfIssueRegex = /(?<=PRICE \.).*?(?=NSN\/MATERIAL)/g;
     const unitOfIssueMatch = text.match(unitOfIssueRegex);
     if(unitOfIssueMatch != null) {
@@ -650,7 +716,7 @@ function getUnitOfIssue(text: string): lineItem[] {
                     PR: unit[1],
                     PRLI: unit[2],
                     UI: unit[3],
-                    QUANTITY: unit[4],
+                    QUANTITY: unit[4].split(".")[0],
                     UNIT_PRICE: unit[5],
                     TOTAL_PRICE: unit[6],
                 }
@@ -660,7 +726,7 @@ function getUnitOfIssue(text: string): lineItem[] {
                     PR: unit[1],
                     PRLI: unit[2],
                     UI: unit[3],
-                    QUANTITY: unit[4],
+                    QUANTITY: unit[4].split(".")[0],
                     UNIT_PRICE: '',
                     TOTAL_PRICE: '',
                 }
@@ -748,12 +814,12 @@ function getSolicitationLineNumber(fobPointsArray: string[]): string[] {
 
 function getTradeAgreementsIndicator(text: string): string {
     const tradeAgreementsIndicatorRegex1 = /DFARS 252\.225-7020 TRADE AGREEMENTS CERTIFICATE AND DFARS 252\.225-7021 TRADE AGREEMENTS APPLIES/;
-    const tradeAgreementsIndicatorRegex2 = /FOR GOVERNMENT USE ONLY/i;
+    const tradeAgreementsIndicatorRegex2 = /(?<=FREIGHT SHIPPING ADDRESS).*?(?=MARKFOR)/;
     const tradeAgreementsIndicator = text.match(tradeAgreementsIndicatorRegex1);
     const tradeAgreementsIndicator2 = text.match(tradeAgreementsIndicatorRegex2);
     if(tradeAgreementsIndicator != null) {
         return "Y";
-    } else if(tradeAgreementsIndicator2 != null) {
+    } else if(tradeAgreementsIndicator2 != null && !tradeAgreementsIndicator2[0].includes(" US ")) {
         return "I";
     } else {
         return "N";
@@ -792,13 +858,13 @@ function getPriceBreaksSolicitedIndicator(text: string): string {
     }
 }
 
-function getBuyAmericanIndicator(text: string, csvObject: RFQRequirements): string {
+function getBuyAmericanIndicator(text: string, csvObject: RFQRequirements, totalUnits: number): string {
     if(csvObject.tradeAgreementsIndicator == "I") {
         return "I";
     } else {
         const buyAmericanIndicatorRegex = /DFARS 252\.225-7001, BUY AMERICAN AND BALANCE OF PAYMENTS PROGRAM/;
         const buyAmericanIndicator = text.match(buyAmericanIndicatorRegex);
-        if(buyAmericanIndicator != null) {
+        if(buyAmericanIndicator != null && isLessThanMicroPurchase(getProcurementHistory(text), totalUnits) == "N") {
             return "Y";
         } else {
             return "N";
@@ -822,10 +888,8 @@ function getItemDescriptionIndicator(text: string): string {
         return "B";
     } else if(itemDescriptionIndicator2 != null) {
         return "Q";
-    } else if(itemDescriptionIndicator3 != null || itemDescriptionIndicator4 != null) {
-        return "D";
     } else {
-        return "N";
+        return 'D';
     }
 }
 
