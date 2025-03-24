@@ -1,14 +1,8 @@
-import Groq from "groq-sdk";
 import { NextResponse } from "next/server";
-import sharp from 'sharp';
 import { getSchema } from "../nsnDBHelper";
 // @ts-ignore
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 
-// const groq = new Groq({
-//     apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY || '',
-//     dangerouslyAllowBrowser: true  // Enable browser usage
-// });
 interface RFQRequirements {
     solicitationNumber: string,
     solicitationTypeIndicator: string,
@@ -888,8 +882,10 @@ function getItemDescriptionIndicator(text: string): string {
         return "B";
     } else if(itemDescriptionIndicator2 != null) {
         return "Q";
-    } else {
+    } else if (itemDescriptionIndicator3 != null || itemDescriptionIndicator4 != null) {
         return 'D';
+    } else {
+        return 'P';
     }
 }
 
@@ -916,7 +912,7 @@ function rfqRequirementsToCsv(data: RFQRequirements): string {
     for(const key in data) {
         value += `"${data[key]}"` + ",";
     }
-    value = value.slice(0, -1);
+    value = value.slice(0, -5);
     return value;
 }
 
