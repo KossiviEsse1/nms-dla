@@ -1,15 +1,20 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error" | "noMatch";
 
 export default function FileUpload() {
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
     const [dragActive, setDragActive] = useState<boolean>(false);
+    const [matches, setMatches] = useState([]);
+    const [nonMatches, setNonMatches] = useState([]);
+    const [failures, setFailures] = useState([]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const allfiles = event.target.files;
+        console.log(allfiles);
         if(allfiles && allfiles.length > 0) {
             for(const file of allfiles) {
                 if(file.type !== "application/pdf") {
@@ -19,12 +24,17 @@ export default function FileUpload() {
                 }
             }
             const filesArray = Array.from(allfiles);
-            console.log(filesArray);
             setFiles(files => filesArray);
+            setMatches([]);
+            setNonMatches([]);
+            setFailures([]);
             setUploadStatus("idle");
         } else {
             alert("Folder must contain PDF files");
             setFiles([]);
+            setMatches([]);
+            setNonMatches([]);
+            setFailures([]);
             setUploadStatus("idle");
         }
     }
@@ -53,11 +63,17 @@ export default function FileUpload() {
                 }
             }
             const filesArray = Array.from(allfiles);
-            setFiles(files => filesArray);
+            setFiles(filesArray);
+            setMatches([]);
+            setNonMatches([]);
+            setFailures([]);
             setUploadStatus("idle");
         } else {
             alert("Folder must contain PDF files");
             setFiles([]);
+            setMatches([]);
+            setNonMatches([]);
+            setFailures([]);
             setUploadStatus("idle");
         }
     };
@@ -85,9 +101,15 @@ export default function FileUpload() {
             
             const data = await response.json();
             if(data.response.trim().length > 0) {
+                setMatches(data.matches);
+                setNonMatches(data.nonMatches);
+                setFailures(data.failures);
                 downloadCsv(data.response);
                 setUploadStatus("success");
             } else {
+                setMatches([]);
+                setNonMatches(data.nonMatches);
+                setFailures(data.failures);
                 setUploadStatus("noMatch");
             }
         } catch (error) {
@@ -108,11 +130,17 @@ export default function FileUpload() {
     }
 
     const resetForm = () => {
-        setFiles(null);
+        setFiles([]);
+        setMatches([]);
+        setNonMatches([]);
+        setFailures([]);
         setUploadStatus("idle");
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     }
 
-    const downloadCsv = (csvContent: string, filename = "rfq_requirements.csv") => {
+    const downloadCsv = (csvContent: string, filename = `rfq_Batch_${new Date().toISOString().split('T')[0]}.csv`) => {
         const blob = new Blob([csvContent], { type: "text/csv" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -144,6 +172,7 @@ export default function FileUpload() {
                         <label className="mt-2 inline-flex items-center px-4 py-2 bg-blue-700 text-white text-sm font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer">
                             <span>Browse Files</span>
                             <input
+                                ref={fileInputRef}
                                 type="file"
                                 multiple
                                 {...({ webkitdirectory: "", directory: "" } as any)}
@@ -216,13 +245,26 @@ export default function FileUpload() {
                             </div>
                             <div className="ml-3">
                                 <p className="text-sm text-green-700">
-                                    Documents processed successfully! CSV Downloaded.
+                                {matches.length} Matches Found! Check your downloads folder for the CSV file.
                                 </p>
+                                <div className="p-4 rounded-lg">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">
+                                        National Stock Number Matches:
+                                    </h3>
+                                    <ul className="list-disc list-inside space-y-1">
+                                    {matches.map((match: any, index) => (
+                                        <li key={index} className="text-green-600">
+                                            {match.nsn}
+                                        </li>
+                                    ))}
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
+
             {uploadStatus === "noMatch" && (
                 <div className="mt-6">
                     <div className="bg-red-50 border-l-4 border-red-500 p-4">
@@ -255,6 +297,68 @@ export default function FileUpload() {
                                 <p className="text-sm text-red-700">
                                     An error occurred while processing your document. Please try again.
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {nonMatches.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-green-700">
+                                    {nonMatches.length} National Stock Number(s) not found in the database.
+                                </p>
+                                <div className="p-4 rounded-lg">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">
+                                        National Stock Numbers not found in the database:
+                                    </h3>
+                                    <ul className="list-disc list-inside space-y-1">
+                                    {nonMatches.map((match: any, index) => (
+                                        <li key={index} className="text-green-600">
+                                            {match.nsn}
+                                        </li>
+                                    ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {failures.length > 0 && (
+                <div className="mt-6">
+                    <div className="bg-red-50 border-l-4 border-red-500 p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-red-700">
+                                    The following {failures.length} solicitation(s) failed to be read by our system.
+                                </p>
+                                <div className="p-4 rounded-lg">
+                                    <h3 className="text-lg font-semibold text-red-800 mb-2">
+                                        Solicitation(s) failed:
+                                    </h3>
+                                    <ul className="list-disc list-inside space-y-1">
+                                        {failures.map((failure: any, index) => (
+                                            <li key={index} className="text-red-600">
+                                                {failure.fileName}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
