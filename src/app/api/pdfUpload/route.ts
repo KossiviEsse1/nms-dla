@@ -364,21 +364,29 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
 
         //Find NSN match in nsnDBArray, NSN is the 9th column
         const prNumbers = getPurchaseRequestNumber(page1Text, allTextPages);
-        const nsnMatches = nsnDBArray.filter((nsn) => nsn[8] == nationalStockNumber && prNumbers.includes(nsn[6]));
+        //TODO Do a Part Number Match to filter
+        const nsnMatches = nsnDBArray.filter((nsn) => nsn.length > 8 && nsn[8] == nationalStockNumber);
         if(nsnMatches.length == 0) {
             //Return some response identifying that no match was found
             return ["noMatch", nationalStockNumber];
         }
 
+        //Get part numbers
+        const partNumbers = getPartNumbers(allTextPages);
+        const cageCodes = getCageCodes(allTextPages);
+
+        //Matching by NSN, CAGE Code, and Part Number
         const csvObjects: RFQRequirements[] = [];
+        const currentMatches = nsnMatches.filter((nsn) => partNumbers.includes(nsn[6]) && cageCodes.includes(nsn[7]));
         for(let i = 0; i < prNumbers.length; i++) {
-            if(nsnMatches.some((nsn) => nsn[6] == prNumbers[i])) {
+            if(prNumbers[i].substring(0, 2) != "10") {
                 const csvObject = emptyRFQRequirements();
                 csvObject.purchaseRequestNumber = prNumbers[i];
                 csvObject.nationalStockNumber = nationalStockNumber;
                 csvObject.index = i;
-                csvObject.actualManufacturingProductionSourceCageCode = nsnMatches.find((nsn) => nsn[6] == prNumbers[i])[7];
-                csvObject.partNumberOfferedCageCode = nsnMatches.find((nsn) => nsn[6] == prNumbers[i])[7];
+                csvObject.actualManufacturingProductionSourceCageCode = currentMatches[0][7];
+                csvObject.partNumberOfferedCageCode = currentMatches[0][7];
+                csvObject.unitPrice = currentMatches[0][19];
                 csvObjects.push(csvObject);
             }
         }
@@ -560,15 +568,9 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.partNumberOfferedCageCode = ['P','B','N'].includes(itemDescriptionIndicator) ? csvObject.partNumberOfferedCageCode : '';
             csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? '' : csvObject.purchaseRequestNumber;
             csvObject.suppliesOffered = ['D','B','Q'].includes(itemDescriptionIndicator) ? '1' : '';
-
             csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
             csvObject.higherLevelQualityCode = higherLevelQualityIndicator == 'N' ? '' : higherLevelQualityIndicator;
             csvObject.childLaborCertificationCode = 'N';
-        });
-
-        csvObjects.forEach((csvObject) => {
-            const nsnMatch = nsnMatches.find((nsn) => nsn[6] == csvObject.purchaseRequestNumber && nsn[8] == csvObject.nationalStockNumber);
-            csvObject.unitPrice = nsnMatch[14];
         });
 
         return ["match", nationalStockNumber, csvObjects.map((csvObject) => rfqRequirementsToCsv(csvObject)).join("\n")];
@@ -649,6 +651,28 @@ function getPurchaseRequestNumber(text1: string, text2: string): string[] {
     }
 }
 
+function getPartNumbers(text: string): string[] {
+    const partNumberRegex = /P\/N\s+(\S+)/g;
+    const partNumberMatch = text.match(partNumberRegex);
+    if(partNumberMatch != null) {
+        const partNumbers = partNumberMatch.map((part) => part.substring(4));
+        return partNumbers;
+    } else {
+        return [""];
+    }
+}
+
+function getCageCodes(text: string): string[] {
+    const cageCodeRegex = /(\S+)\s+P\/N/g;
+    const cageCodeMatch = text.match(cageCodeRegex);
+    if(cageCodeMatch != null) {
+        const cageCodes = cageCodeMatch.map((code) => code.split(" ")[0]);
+        return cageCodes;
+    } else {
+        return [""];
+    }
+}
+
 function getNationalStockNumber(text: string): string[] {
     const nsnRegex = /NSN\/MATERIAL:(\S+)/g;
     const nsnMatch = text.match(nsnRegex);
@@ -690,7 +714,6 @@ function getProcurementHistory(text: string): string[][] {
 
 function isLessThanMicroPurchase(procurementHistory: string[][], totalUnits: number): string {
     const maxUnitPrice = procurementHistory.map((history) => Number(history[3])).reduce((a, b) => Math.max(a, b));
-    console.log(maxUnitPrice);
     if(maxUnitPrice * totalUnits < 10000) {
         return "Y";
     } else {
