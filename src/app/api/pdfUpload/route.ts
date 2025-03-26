@@ -386,6 +386,7 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
                 csvObject.index = i;
                 csvObject.actualManufacturingProductionSourceCageCode = currentMatches[0][7];
                 csvObject.partNumberOfferedCageCode = currentMatches[0][7];
+                csvObject.partNumberOfferedPartNumber = currentMatches[0][6];
                 csvObject.unitPrice = currentMatches[0][19];
                 csvObjects.push(csvObject);
             }
@@ -566,7 +567,7 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
             csvObject.partNumberOfferedCode = '1';
             csvObject.partNumberOfferedCageCode = ['P','B','N'].includes(itemDescriptionIndicator) ? csvObject.partNumberOfferedCageCode : '';
-            csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? '' : csvObject.purchaseRequestNumber;
+            csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? '' : csvObject.partNumberOfferedPartNumber;
             csvObject.suppliesOffered = ['D','B','Q'].includes(itemDescriptionIndicator) ? '1' : '';
             csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
             csvObject.higherLevelQualityCode = higherLevelQualityIndicator == 'N' ? '' : higherLevelQualityIndicator;
