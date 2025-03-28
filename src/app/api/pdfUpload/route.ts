@@ -273,6 +273,215 @@ const emptyRFQRequirements = (): RFQRequirements => ({
     index: 0,
 })
 
+const countryCodes: Record<string, string> = {
+    "afghanistan": "AF",
+    "albania": "AL",
+    "australia": "AU",
+    "austria": "AT",
+    "algeria": "DZ",
+    "belgium": "BE",
+    "canada": "CA",
+    "angola": "AO",
+    "american samoa": "AS",
+    "czechia": "CZ",
+    "chile": "CL",
+    "antigua and barbuda": "AG",
+    "andorra": "AD",
+    "denmark": "DK",
+    "colombia": "CO",
+    "armenia": "AM",
+    "anguilla": "AI",
+    "egypt": "EG",
+    "costa rica": "CR",
+    "aruba": "AW",
+    "antarctica": "AQ",
+    "estonia": "EE",
+    "dominican republic": "DO",
+    "bahamas": "BS",
+    "argentina": "AR",
+    "finland": "FI",
+    "el salvador": "SV",
+    "bahrain": "BH",
+    "azerbaijan": "AZ",
+    "france": "FR",
+    "guatemala": "GT",
+    "bangladesh": "BD",
+    "belarus": "BY",
+    "germany": "DE",
+    "honduras": "HN",
+    "barbados": "BB",
+    "bermuda": "BM",
+    "greece": "GR",
+    "korea, republic of": "KR",
+    "mexico": "MX",
+    "belize": "BZ",
+    "bolivia": "BO",
+    "israel": "IL",
+    "nicaragua": "NI",
+    "benin": "BJ",
+    "bosnia and herzegovina": "BA",
+    "italy": "IT",
+    "singapore": "SG",
+    "bhutan": "BT",
+    "botswana": "BW",
+    "japan": "JP",
+    "bonaire, sint eustatius and saba": "BQ",
+    "bouvet island": "BV",
+    "latvia": "LV",
+    "bulgaria": "BG",
+    "brazil": "BR",
+    "lithuania": "LT",
+    "burkina faso": "BF",
+    "british indian ocean territory": "IO",
+    "luxembourg": "LU",
+    "burundi": "BI",
+    "brunei darussalam": "BN",
+    "netherlands": "NL",
+    "cambodia": "KH",
+    "cabo verde": "CV",
+    "norway": "NO",
+    "central african republic": "CF",
+    "cameroon": "CM",
+    "poland": "PL",
+    "chad": "TD",
+    "cayman islands": "KY",
+    "portugal": "PT",
+    "china": "CN",
+    "slovenia": "SI",
+    "christmas island": "CX",
+    "spain": "ES",
+    "comoros": "KM",
+    "cocos (keeling) islands": "CC",
+    "sweden": "SE",
+    "congo the democratic republic of the": "CD",
+    "congo": "CG",
+    "switzerland": "CH",
+    "cook islands": "CK",
+    "turkey": "TR",
+    "croatia": "HR",
+    "cote d'ivoire": "CI",
+    "united kingdom": "GB",
+    "curacao": "CW",
+    "ecuador": "EC",
+    "cyprus": "CY",
+    "eswatini": "SZ",
+    "djibouti": "DJ",
+    "falkland islands (malvinas)": "FK",
+    "dominica": "DM",
+    "faroe islands": "FO",
+    "fiji": "FJ",
+    "french guiana": "GF",
+    "equatorial guinea": "GQ",
+    "french polynesia": "PF",
+    "eritrea": "ER",
+    "french southern territories": "TF",
+    "ethiopia": "ET",
+    "gabon": "GA",
+    "gambia": "GM",
+    "georgia": "GE",
+    "grenada": "GD",
+    "ghana": "GH",
+    "gibraltar": "GI",
+    "guinea": "GN",
+    "greenland": "GL",
+    "guinea-bissau": "GW",
+    "guadeloupe": "GP",
+    "guyana": "GY",
+    "guam": "GU",
+    "haiti": "HT",
+    "heard island and mcdonald islands": "HM",
+    "holy see (vatican city state)": "VA",
+    "hong kong": "HK",
+    "india": "IN",
+    "hungary": "HU",
+    "indonesia": "ID",
+    "iceland": "IS",
+    "iraq": "IQ",
+    "ireland": "IE",
+    "isle of man": "IM",
+    "jamaica": "JM",
+    "jordan": "JO",
+    "kiribati": "KI",
+    "kazakhstan": "KZ",
+    "kenya": "KE",
+    "lao peoples democratic republic": "LA",
+    "kosovo": "XK",
+    "lesotho": "LS",
+    "kuwait": "KW",
+    "liberia": "LR",
+    "kyrgyzstan": "KG",
+    "liechtenstein": "LI",
+    "lebanon": "LB",
+    "madagascar": "MG",
+    "libya": "LY",
+    "malawi": "MW",
+    "macao": "MO",
+    "mali": "ML",
+    "malaysia": "MY",
+    "malta": "MT",
+    "maldives": "MV",
+    "mauritania": "MR",
+    "marshall islands": "MH",
+    "martinique": "MQ",
+    "moldova republic of": "MD",
+    "mauritius": "MU",
+    "montenegro": "ME",
+    "mayotte": "YT",
+    "montserrat": "MS",
+    "micronesia federated states of": "FM",
+    "morocco": "MA",
+    "monaco": "MC",
+    "mozambique": "MZ",
+    "mongolia": "MN",
+    "nepal": "NP",
+    "namibia": "NA",
+    "new zealand": "NZ",
+    "nauru": "NR",
+    "new caledonia": "NC",
+    "niger": "NE",
+    "nigeria": "NG",
+    "north macedonia": "MK",
+    "niue": "NU",
+    "panama": "PA",
+    "norfolk island": "NF",
+    "peru": "PE",
+    "northern mariana islands": "MP",
+    "romania": "RO",
+    "oman": "OM",
+    "rwanda": "RW",
+    "pakistan": "PK",
+    "saint kitts and nevis": "KN",
+    "palau": "PW",
+    "saint lucia": "LC",
+    "palestine state of": "PS",
+    "saint vincent and the grenadines": "VC",
+    "papua new guinea": "PG",
+    "samoa": "WS",
+    "paraguay": "PY",
+    "sao tome and principe": "ST",
+    "philippines": "PH",
+    "senegal": "SN",
+    "pitcairn": "PN",
+    "sierra leone": "SL",
+    "puerto rico": "PR",
+    "qatar": "QA",
+    "sint maarten": "SX",
+    "reunion": "RE",
+    "slovakia": "SK",
+    "russian federation": "RU",
+    "solomon islands": "SB",
+    "saint helena": "SH",
+    "somalia": "SO",
+    "saint pierre and miquelon": "PM",
+    "south sudan": "SS",
+    "san marino": "SM",
+    "taiwan province of china": "TW",
+    "saudi arabia": "SA",
+    "tanzania united republic of": "TZ",
+    "serbia": "RS",
+    "timor-leste": "TL",
+  };
+
 export async function POST(req: Request) {
     try {
         // @ts-ignore
@@ -364,8 +573,7 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
 
         //Find NSN match in nsnDBArray, NSN is the 9th column
         const prNumbers = getPurchaseRequestNumber(page1Text, allTextPages);
-        //TODO Do a Part Number Match to filter
-        const nsnMatches = nsnDBArray.filter((nsn) => nsn.length > 8 && nsn[8] == nationalStockNumber);
+        const nsnMatches = nsnDBArray.filter((nsn) => nsn.length > 14 && nsn[14] == nationalStockNumber);
         if(nsnMatches.length == 0) {
             //Return some response identifying that no match was found
             return ["noMatch", nationalStockNumber];
@@ -377,22 +585,22 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
 
         //Matching by NSN, CAGE Code, and Part Number
         const csvObjects: RFQRequirements[] = [];
-        const currentMatches = nsnMatches.filter((nsn) => partNumbers.includes(nsn[6]) && cageCodes.includes(nsn[7]));
+        const currentMatches = nsnMatches.filter((nsn) => partNumbers.includes(nsn[12]) && cageCodes.includes(nsn[13]));
         for(let i = 0; i < prNumbers.length; i++) {
             if(prNumbers[i].substring(0, 2) != "10") {
                 const csvObject = emptyRFQRequirements();
                 csvObject.purchaseRequestNumber = prNumbers[i];
                 csvObject.nationalStockNumber = nationalStockNumber;
                 csvObject.index = i;
-                csvObject.actualManufacturingProductionSourceCageCode = currentMatches[0][7];
-                csvObject.partNumberOfferedCageCode = currentMatches[0][7];
-                csvObject.partNumberOfferedPartNumber = currentMatches[0][6];
-                csvObject.unitPrice = currentMatches[0][19];
+                csvObject.actualManufacturingProductionSourceCageCode = currentMatches[0][13];
+                csvObject.partNumberOfferedCageCode = currentMatches[0][13];
+                csvObject.partNumberOfferedPartNumber = currentMatches[0][12];
+                csvObject.unitPrice = currentMatches[0][25];
                 csvObjects.push(csvObject);
             }
         }
 
-        const unitOfIssueArray = getUnitOfIssue(allTextPages, nsnDBArray);
+        const unitOfIssueArray = getUnitOfIssue(allTextPages, currentMatches);
 
         const totalUnits = unitOfIssueArray.reduce((a, b) => a + Number(b.QUANTITY), 0);
 
@@ -411,13 +619,12 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //7. Quote for CAGE Code -- Blank for now -- Make it same as Quoter for Cage Code
         //8-12 Reserved
         //13. Small Business and Other Contractor Representations Code -- Default to M for our user, will need to update later
-        //18. Joint Venture -- Defaulting to blank
-        //19. Joint Venture Remarks -- Defaulting to blank
+        //18. Joint Venture -- Defaulting to blank -- If required to enter, enter JN
         //20. Reserved
         //21. Affirmative Action Compliance Code -- Defaulting to NA
         //22. Previous Contracts and Compliance Reports Code -- Defaulting to NA
-        //23. Alternate Disputes Resolution -- Defaulting to B
-        //24. Bid Type Code -- Defaulting to BI
+        //23. Alternate Disputes Resolution -- Defaulting to A
+        //24. Bid Type Code -- Defaulting to BI -- AB also used
         //25. Prompt Payment Discount Terms Code -- Defaulting to 1
         //26. Vendor Quote Number -- Defaulting to blank
         //27. Days Quote Valid -- Defaulting to 90
@@ -428,13 +635,18 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //32. FOB Point, can have several -- Finished
         const fobPoint = getFOBPoint(allTextPages);
         //33-35 Is information that must be collected from our customers
+
+        //Create legends for country and state/province 
         //33. FOB City -- Default to blank
         //34. FOB State/Province -- Default to blank
         //35. FOB Country -- Default to blank
+
+
         //36. Inspection Point Code, can have several -- Finished
         const inspectionCodePoint = getInspectionPoint(allTextPages);
         //37. Place of Government Inspection - Packaging CAGE code - If inspection point is O, then 028F4, else blank
         //38. Place of Government Inspection - Supplies CAGE code - If inspection point is O, then 028F4, else blank
+
         //39 - 43 Reserved
         //44. Solicitation Line Number -- Not explicitly an RFQ requirement, but from RFQ, equivalent to number of FOB Points if multiple requisition numbers, otherwise 0001
         const solicitationLineNumbers = getSolicitationLineNumber(fobPoint);
@@ -472,9 +684,9 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         const buyAmericanIndicator = getBuyAmericanIndicator(allTextPages, csvObject, totalUnits);
         //69. Free Trade Agreements Indicator -- Unfinished no default
         const freeTradeAgreementsIndicator = getFreeTradeAgreementsIndicator(allTextPages, csvObject);
-        //70. Buy American/Free Trade/Trade Agreements End Product -- Todo
-        //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Todo
-        //72. Buy American / Free Trade / Trade Agreements Country Code -- Todo
+        //70. Buy American/Free Trade/Trade Agreements End Product
+        //71. Buy American/ Free Trade Agreements/Trade Agreements Country of Origin Code -- Get based on new CSV
+        //72. Buy American / Free Trade / Trade Agreements Country Code -- Get based on new CSV
         //73. Duty Free Entry Requested -- N Default
         //74. Duty Free Entry Requested/Foreign Supplies in US Code -- Default to blank
         //75. Duty Free Entry Requested/Duty Paid Code -- Default to blank
@@ -493,7 +705,7 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         //101. Immediate Shipment Quantity -- Not an RFQ requirement, default to blank, conditions on answering in the website
         //102. Manufacturer/Dealer -- Not an RFQ requirement, Default DD
         //103. Actual Manufacturing/Production Source CAGE code -- Not an RFQ requirement, conditions for entering on website, default blank
-        //104. Actual Manufacturing/Production Source Name and Address -- Not an RFQ requirement, A self entered text, conditions for entering on the website, default blank
+        //104. Actual Manufacturing/Production Source Name and Address -- Not an RFQ requirement, A self entered text, conditions for entering on the website, default blank -- National Material Supply Co. LLC
         //105. Item Description Indicator, Certain for B, Q, N, unsure about D, P, and S, needs work
         const itemDescriptionIndicator = getItemDescriptionIndicator(allTextPages);
         //106. Part Number Offered Code -- Not an RFQ requirement, base is blank, enter yourself, conditions on website
@@ -523,12 +735,13 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.fobPoint = csvObject.index < fobPoint.length ? fobPoint[csvObject.index] : fobPoint[0];
             csvObject.quoterForCageCode = '1J8D2';
             csvObject.smallBusinessRepCode = 'M';
+            csvObject.jointVenture = (csvObject.smallBusinessSetAsideIndicator != 'N' && ['B','M'].includes(csvObject.smallBusinessRepCode)) ? 'JN' : '';
             csvObject.aaComplianceCode = 'NA';
             csvObject.previousCandCReportsCode = 'NA';
-            csvObject.alternateDisputesResolution = 'B';
+            csvObject.alternateDisputesResolution = 'A';
             csvObject.bidTypeCode = 'BI';
             csvObject.promptPaymentDiscountTermsCode = '1';
-            csvObject.daysQuoteValid = '90';
+            csvObject.daysQuoteValid = (csvObject.solicitationTypeIndicator == 'I') ? '90' : '30';
             csvObject.meetsPackagingRequirement = 'Y';
             csvObject.boaFssBpa = 'NAP';
             csvObject.inspectionCodePoint = inspectionCodePoint;
@@ -538,8 +751,8 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.solicitationLineNumber = solicitationLineNumbers[csvObject.index];
             csvObject.unitOfIssue = unitOfIssueArray[csvObject.index].UI;
             csvObject.quantity = unitOfIssueArray[csvObject.index].QUANTITY;
-            csvObject.unitPrice = unitOfIssueArray[csvObject.index].UNIT_PRICE;
-            csvObject.deliveryDays = parseInt(deliveryDays, 10);
+            //csvObject.unitPrice = unitOfIssueArray[csvObject.index].UNIT_PRICE;
+            csvObject.deliveryDays = parseInt(deliveryDays, 10) - 5;
             csvObject.guaranteedMinimum = guaranteedMinimum;
             csvObject.doMinimum = doMinimum;
             csvObject.contractMaximum = contractMaximum;
@@ -549,9 +762,13 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.waiverOfHubZonePreference = (csvObject.hubZonePreferenceIndicator == 'N') ? '' : 'N';
             csvObject.tradeAgreementsIndicator = tradeAgreementsIndicator;
             csvObject.hazardousMaterialIdentificationAndMaterialSafetyData = 'N';
+            csvObject.hazardousWarningLabels = '7';
             csvObject.materialRequirements = '0';
             csvObject.buyAmericanIndicator = buyAmericanIndicator;
             csvObject.freeTradeAgreementsIndicator = freeTradeAgreementsIndicator;
+            csvObject.bAFtTaEndProduct = currentMatches[0][11];
+            csvObject.bAFtTaCountryOfOriginCode = getCountryOfOriginCode(csvObject, currentMatches[0][9]);
+            csvObject.bAFtTaCountryCode = getCountryCode(csvObject, currentMatches[0][9]);
             csvObject.dutyFreeEntryRequested = csvObject.buyAmericanIndicator == 'I' ? '' : 'N';
             csvObject.dutyFreeEntryRequestedForeignSuppliesInUSCode = csvObject.buyAmericanIndicator == 'I' ? '' : csvObject.dutyFreeEntryRequested == 'Y' ? 'N' : '';
             csvObject.dutyFreeEntryRequestedDutyPaidCode = csvObject.buyAmericanIndicator == 'I' ? '' : csvObject.dutyFreeEntryRequestedForeignSuppliesInUSCode == 'Y' ? 'N' : '';
@@ -567,8 +784,12 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
             csvObject.itemDescriptionIndicator = itemDescriptionIndicator;
             csvObject.partNumberOfferedCode = '1';
             csvObject.partNumberOfferedCageCode = ['P','B','N'].includes(itemDescriptionIndicator) ? csvObject.partNumberOfferedCageCode : '';
-            csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? '' : csvObject.partNumberOfferedPartNumber;
+            csvObject.partNumberOfferedPartNumber = ['P','B','N'].includes(itemDescriptionIndicator) ? csvObject.partNumberOfferedPartNumber : '';
             csvObject.suppliesOffered = ['D','B','Q'].includes(itemDescriptionIndicator) ? '1' : '';
+            csvObject.suppliesOfferedRemarks = '';
+            csvObject.qualificationRequirementsMfgCage = itemDescriptionIndicator == 'Q' ? csvObject.partNumberOfferedCageCode : '';
+            csvObject.qualificationRequirementsSourceCage = itemDescriptionIndicator == 'Q' ? csvObject.partNumberOfferedCageCode : '';
+            csvObject.qualificationRequirementsItemName = currentMatches[0][15];
             csvObject.higherLevelQualityIndicator = higherLevelQualityIndicator;
             csvObject.higherLevelQualityCode = higherLevelQualityIndicator == 'N' ? '' : higherLevelQualityIndicator;
             csvObject.childLaborCertificationCode = 'N';
@@ -579,6 +800,39 @@ async function getSolicitationData(file: File, nsnDBArray: string[][]): Promise<
         console.error("Error processing request:", error);
         return ["error", ""];
     }
+}
+
+function getCountryOfOriginCode(csvObject: RFQRequirements, country: string): string {
+    if(!['NQ', 'O', 'ND', 'US'].includes(csvObject.bAFtTaEndProduct)) {
+        return '';
+    }
+    if((csvObject.freeTradeAgreementsIndicator == 'A' && csvObject.bAFtTaEndProduct == 'O') || 
+        (csvObject.freeTradeAgreementsIndicator == 'B' && csvObject.bAFtTaEndProduct == 'O') ||
+        (csvObject.freeTradeAgreementsIndicator == 'C' && csvObject.bAFtTaEndProduct == 'O') ||
+        (['Y', 'I'].includes(csvObject.freeTradeAgreementsIndicator) && csvObject.bAFtTaEndProduct == 'NQ') ||
+        (csvObject.tradeAgreementsIndicator == 'Y' && csvObject.bAFtTaEndProduct == 'ND')
+    ) {
+        return countryCodes[country.toLowerCase()];
+    }
+    return '';
+}
+
+function getCountryCode(csvObject: RFQRequirements, country: string): string {
+    if(["D", "NQ", "O", "ND", "US"].includes(csvObject.bAFtTaEndProduct)) {
+        return '';
+    }
+    if(csvObject.bAFtTaEndProduct == 'Q' ||
+        csvObject.bAFtTaEndProduct == 'QA' ||
+        csvObject.bAFtTaEndProduct == 'QD' ||
+        csvObject.bAFtTaEndProduct == 'QE' ||
+        csvObject.bAFtTaEndProduct == 'C' ||
+        csvObject.bAFtTaEndProduct == 'N' ||
+        csvObject.bAFtTaEndProduct == 'P' ||
+        csvObject.bAFtTaEndProduct == 'DE' 
+    ) {
+        return countryCodes[country.toLowerCase()];
+    }
+    return '';
 }
 
 function getSolicitationTypeIndicator(text: string, totalUnits: number): string {
